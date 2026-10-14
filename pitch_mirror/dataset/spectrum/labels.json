@@ -1,0 +1,180 @@
+{
+  "good_moon_jfk_L1.wav": {
+    "source": "good_moon_jfk.wav",
+    "level": 1,
+    "flaws": []
+  },
+  "good_moon_jfk_L2.wav": {
+    "source": "good_moon_jfk.wav",
+    "level": 2,
+    "flaws": [
+      {
+        "type": "pace_fast",
+        "start": 0.0,
+        "end": 40.65,
+        "detail": "tempo x1.3"
+      },
+      {
+        "type": "monotone",
+        "start": 0.0,
+        "end": 40.65,
+        "detail": "pitch flattened 50%"
+      },
+      {
+        "type": "long_pause",
+        "start": 16.26,
+        "end": 17.76,
+        "detail": "1.5s silence"
+      }
+    ]
+  },
+  "good_moon_jfk_L3.wav": {
+    "source": "good_moon_jfk.wav",
+    "level": 3,
+    "flaws": [
+      {
+        "type": "pace_fast",
+        "start": 0.0,
+        "end": 36.44,
+        "detail": "tempo x1.45"
+      },
+      {
+        "type": "monotone",
+        "start": 0.0,
+        "end": 36.44,
+        "detail": "pitch flattened 75%"
+      },
+      {
+        "type": "long_pause",
+        "start": 14.57,
+        "end": 17.07,
+        "detail": "2.5s silence"
+      },
+      {
+        "type": "low_energy",
+        "start": 27.25,
+        "end": 38.94,
+        "detail": "-10 dB"
+      }
+    ]
+  },
+  "good_moon_jfk_L4.wav": {
+    "source": "good_moon_jfk.wav",
+    "level": 4,
+    "flaws": [
+      {
+        "type": "pace_fast",
+        "start": 0.0,
+        "end": 32.01,
+        "detail": "tempo x1.65"
+      },
+      {
+        "type": "monotone",
+        "start": 0.0,
+        "end": 32.01,
+        "detail": "pitch flattened 95%"
+      },
+      {
+        "type": "long_pause",
+        "start": 12.8,
+        "end": 16.3,
+        "detail": "3.5s silence"
+      },
+      {
+        "type": "low_energy",
+        "start": 24.86,
+        "end": 35.51,
+        "detail": "-16 dB"
+      }
+    ]
+  },
+  "good_challenger_reagan_L1.wav": {
+    "source": "good_challenger_reagan.wav",
+    "level": 1,
+    "flaws": []
+  },
+  "good_challenger_reagan_L2.wav": {
+    "source": "good_challenger_reagan.wav",
+    "level": 2,
+    "flaws": [
+      {
+        "type": "pace_fast",
+        "start": 0.0,
+        "end": 36.31,
+        "detail": "tempo x1.3"
+      },
+      {
+        "type": "monotone",
+        "start": 0.0,
+        "end": 36.31,
+        "detail": "pitch flattened 50%"
+      },
+      {
+        "type": "long_pause",
+        "start": 14.53,
+        "end": 16.03,
+        "detail": "1.5s silence"
+      }
+    ]
+  },
+  "good_challenger_reagan_L3.wav": {
+    "source": "good_challenger_reagan.wav",
+    "level": 3,
+    "flaws": [
+      {
+        "type": "pace_fast",
+        "start": 0.0,
+        "end": 32.57,
+        "detail": "tempo x1.45"
+      },
+      {
+        "type": "monotone",
+        "start": 0.0,
+        "end": 32.57,
+        "detail": "pitch flattened 75%"
+      },
+      {
+        "type": "long_pause",
+        "start": 13.03,
+        "end": 15.53,
+        "detail": "2.5s silence"
+      },
+      {
+        "type": "low_energy",
+        "start": 24.55,
+        "end": 35.07,
+        "detail": "-10 dB"
+      }
+    ]
+  },
+  "good_challenger_reagan_L4.wav": {
+    "source": "good_challenger_reagan.wav",
+    "level": 4,
+    "flaws": [
+      {
+        "type": "pace_fast",
+        "start": 0.0,
+        "end": 28.6,
+        "detail": "tempo x1.65"
+      },
+      {
+        "type": "monotone",
+        "start": 0.0,
+        "end": 28.6,
+        "detail": "pitch flattened 95%"
+      },
+      {
+        "type": "long_pause",
+        "start": 11.44,
+        "end": 14.94,
+        "detail": "3.5s silence"
+      },
+      {
+        "type": "low_energy",
+        "start": 22.47,
+        "end": 32.1,
+        "detail": "-16 dB"
+      }
+    ]
+  }
+}

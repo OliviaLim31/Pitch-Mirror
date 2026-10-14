@@ -35,8 +35,9 @@ for name, lab in sorted(labels.items(), key=lambda kv: kv[1]["level"]):
                      "detected": bool(found), "start_error_s": None if err is None else round(err, 2)})
     print(f"L{lab['level']} {name}: overall={r['scores']['overall']:.1f}, flaws={len(r['flaws'])}")
 out = Path("eval_results"); out.mkdir(exist_ok=True)
+tag = Path(a.baseline).stem  # one set of files per baseline, so running several baselines never overwrites
 df, dh = pd.DataFrame(rows), pd.DataFrame(hits)
-df.to_csv(out / "stress_scores.csv", index=False); dh.to_csv(out / "stress_hits.csv", index=False)
+df.to_csv(out / f"stress_scores_{tag}.csv", index=False); dh.to_csv(out / f"stress_hits_{tag}.csv", index=False)
 print(dh.to_string(index=False))
 if len(dh):
     print("\nDetection rate by type:\n", dh.groupby("type")["detected"].mean().round(2).to_string())
@@ -45,4 +46,4 @@ fig, ax = plt.subplots(figsize=(7, 3.6), facecolor="#0E0B16"); ax.set_facecolor(
 base_score = P.analyze(a.baseline, use_ai=False)["scores"]["overall"]
 ax.plot([0] + df["level"].tolist(), [base_score] + df["overall"].tolist(), "-o", color="#8B5CF6")
 ax.set_xlabel("flaw level (0 = original good)"); ax.set_ylabel("overall score"); ax.set_ylim(0, 100)
-ax.set_title("Score falls as injected flaws get worse", color="#E8E6F0"); fig.tight_layout(); fig.savefig(out / "stress_gradient.png", dpi=150)
+ax.set_title("Score falls as injected flaws get worse", color="#E8E6F0"); fig.tight_layout(); fig.savefig(out / f"stress_gradient_{tag}.png", dpi=150)

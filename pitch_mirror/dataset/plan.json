@@ -1,0 +1,78 @@
+{
+  "speaker": "olivia",
+  "scripts": {
+    "moon": {
+      "baseline": "good_moon_jfk.wav",
+      "sentences": [
+        "But why, some say, the Moon?",
+        "Why choose this as our goal?",
+        "And they may well ask, why climb the highest mountain?",
+        "Why, 35 years ago, fly the Atlantic?",
+        "Why does Rice play Texas?",
+        "We choose to go to the Moon.",
+        "We choose to go to the Moon.",
+        "We choose to go to the Moon in this decade and do the other things, not because they are easy, but because they are hard;",
+        "because that goal will serve to organize and measure the best of our energies and skills;",
+        "because that challenge is one that we're willing to accept, one we are unwilling to postpone, and one we intend to win, and the others, too."
+      ]
+    },
+    "challenger": {
+      "baseline": "good_challenger_reagan.wav",
+      "sentences": [
+        "We've grown used to wonders in this century.",
+        "It's hard to dazzle us.",
+        "But for 25 years the United States space program has been doing just that.",
+        "We've grown used to the idea of space, and perhaps we forget that we've only just begun.",
+        "We're still pioneers.",
+        "They, the members of the Challenger crew, were pioneers.",
+        "And I want to say something to the schoolchildren of America who were watching the live coverage of the shuttle's takeoff.",
+        "I know it's hard to understand, but sometimes painful things like this happen.",
+        "It's all part of the process of exploration and discovery.",
+        "It's all part of taking a chance and expanding man's horizons.",
+        "The future doesn't belong to the fainthearted; it belongs to the brave."
+      ]
+    }
+  },
+  "takes": {
+    "best": {
+      "level": 0,
+      "how": "Your best delivery: clear, confident, natural pace and pauses.",
+      "flaws": []
+    },
+    "rushed": {
+      "level": 3,
+      "how": "Read normally, but RUSH the marked sentences as fast as you can while still saying every word.",
+      "flaws": [{"type": "pace_fast", "sentences": {"moon": [8, 9], "challenger": [7, 8]}}]
+    },
+    "monotone": {
+      "level": 3,
+      "how": "Read normally, but say the marked sentences in a FLAT robot voice: the same pitch on every word.",
+      "flaws": [{"type": "monotone", "sentences": {"moon": [3, 4, 5], "challenger": [3, 4]}}]
+    },
+    "trailing": {
+      "level": 2,
+      "how": "Read normally, but let your voice drop to a QUIET mumble on the marked sentences, fading out at each sentence end.",
+      "flaws": [{"type": "low_energy", "sentences": {"moon": [9, 10], "challenger": [9, 10, 11]}}]
+    },
+    "fillers": {
+      "level": 3,
+      "how": "Read normally, but add fillers (um, uh, like, you know), about 2 in each marked sentence.",
+      "flaws": [{"type": "filler", "sentences": {"moon": [3, 4, 5], "challenger": [4, 5, 6]}}]
+    },
+    "pauses": {
+      "level": 2,
+      "how": "Read normally, but FREEZE for about 3 seconds at each pause mark, then carry on.",
+      "flaws": [{"type": "long_pause", "after": {"moon": [[3, "highest"], [9, "organize"]], "challenger": [[3, "States"], [9, "process"]]}}]
+    },
+    "botched": {
+      "level": 4,
+      "how": "Everything at once: fillers, rushing, a frozen pause and a quiet ending, exactly where marked.",
+      "flaws": [
+        {"type": "filler", "sentences": {"moon": [3, 4], "challenger": [4, 5]}},
+        {"type": "pace_fast", "sentences": {"moon": [8], "challenger": [7, 8]}},
+        {"type": "long_pause", "after": {"moon": [[9, "organize"]], "challenger": [[9, "process"]]}},
+        {"type": "low_energy", "sentences": {"moon": [10], "challenger": [11]}}
+      ]
+    }
+  }
+}

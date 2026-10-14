@@ -6,7 +6,6 @@ Then open http://localhost:8000
 """
 import json
 import re
-import statistics
 import threading
 import time
 import uuid
@@ -383,8 +382,12 @@ def compare(a: str, b: str):
         {"name": "Overall", "a": round(ra["scores"]["overall"]), "b": round(rb["scores"]["overall"]), "better": "higher"},
     ]
     rows = [r for r in rows if r["a"] is not None and r["b"] is not None]
-    # Reproducibility: re-score the same cached analysis 5 times. The scorer is pure maths, so sigma should be 0.
-    reruns = [F.score(rb, rb["flaws"], rb.get("ai") if rb.get("ai") and not rb["ai"].get("error") else None)["overall"] for _ in range(5)]
+    # Reproducibility evidence = eval.py's cache-cleared reruns of the whole pipeline (re-scoring one cached
+    # result would always give sigma 0 and prove nothing). Not run yet -> the badge says so.
+    summ = ROOT / "eval_results" / "summary.json"
+    ev = json.loads(summ.read_text()) if summ.exists() else None
+    repro = {"available": bool(ev), "runs": ev["repeats"] if ev else 0, "files": ev["n_files"] if ev else 0,
+             "sigma": round(ev["rerun_std_max"], 2) if ev else None, "version": rb.get("version"), "temperature": 0}
     fa, fb = ra["global"]["filler_count"], rb["global"]["filler_count"]
     if fa > 0 and fb < fa:
         head = {"text": "You cut fillers by", "value": f"{round((fa - fb) / fa * 100)}%"}
@@ -392,7 +395,7 @@ def compare(a: str, b: str):
         d = round(rb["scores"]["overall"] - ra["scores"]["overall"])
         head = {"text": "Your overall score moved", "value": f"{d:+d} pts"}
     return {"a": public_session(A, full=False), "b": public_session(B, full=False), "rows": rows, "headline": head,
-            "repro": {"runs": len(reruns), "sigma": round(statistics.pstdev(reruns), 2), "version": rb.get("version"), "temperature": 0},
+            "repro": repro,
             "timeline_a": [{"t": (w["start"] + w["end"]) / 2, "wpm": w["wpm"]} for w in ra["windows"]],
             "timeline_b": [{"t": (w["start"] + w["end"]) / 2, "wpm": w["wpm"]} for w in rb["windows"]],
             "flaws_a": [{"s": f["start"], "sev": f["severity"]} for f in A["display_flaws"]],

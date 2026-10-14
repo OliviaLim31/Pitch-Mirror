@@ -1,0 +1,12 @@
+file,level,type,label_start,label_end,detected,start_error_s
+good_challenger_reagan_L2.wav,2,pace_fast,0.0,36.31,True,0.0
+good_challenger_reagan_L2.wav,2,monotone,0.0,36.31,False,
+good_challenger_reagan_L2.wav,2,long_pause,14.53,16.03,True,0.03
+good_challenger_reagan_L3.wav,3,pace_fast,0.0,32.57,True,0.0
+good_challenger_reagan_L3.wav,3,monotone,0.0,32.57,False,
+good_challenger_reagan_L3.wav,3,long_pause,13.03,15.53,True,0.03
+good_challenger_reagan_L3.wav,3,low_energy,24.55,35.07,True,7.09
+good_challenger_reagan_L4.wav,4,pace_fast,0.0,28.6,True,0.0
+good_challenger_reagan_L4.wav,4,monotone,0.0,28.6,False,
+good_challenger_reagan_L4.wav,4,long_pause,11.44,14.94,True,0.04
+good_challenger_reagan_L4.wav,4,low_energy,22.47,32.1,True,1.05

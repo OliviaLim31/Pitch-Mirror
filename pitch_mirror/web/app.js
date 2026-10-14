@@ -725,8 +725,10 @@ async function progressView(a, b) {
         <article class="card ba glow"><p class="eyebrow" style="color:var(--violet-3)">After</p>${ring(c.b.overall, { size: 112 })}<p class="date">${date(c.b.created)} · ${fmt(c.b.duration)}</p></article>
       </div>
       <article class="card verified" data-anim="3"><div class="check">${ICON.check}</div>
-        <div><p class="card-title">Reproducible score</p><p class="card-sub mono" style="font-size:11px">${c.repro.runs} re-runs · σ = ${c.repro.sigma} pts · rubric v${esc(c.repro.version)} · temperature ${c.repro.temperature}</p></div>
-        <span class="ok">${c.repro.sigma < 2 ? "VERIFIED" : "UNSTABLE"}</span></article>
+        <div><p class="card-title">Reproducible score</p><p class="card-sub mono" style="font-size:11px">${c.repro.available
+          ? `eval.py · ${c.repro.files} files × ${c.repro.runs} cache-cleared re-runs · max σ = ${c.repro.sigma} pts · rubric v${esc(c.repro.version)}`
+          : "Not measured yet · run py -3.12 eval.py --plan --repeats 3 --no-ai"}</p></div>
+        <span class="ok">${!c.repro.available ? "NOT RUN" : c.repro.sigma <= 0.5 ? "VERIFIED" : "UNSTABLE"}</span></article>
     </div>
     <article class="card" data-anim="2" style="align-self:start">
       <div class="lane-head"><p class="card-title">Metric breakdown</p><span class="chip" style="cursor:default">${esc(c.b.rubric.name)} · ${c.b.rubric.minutes} min</span></div>

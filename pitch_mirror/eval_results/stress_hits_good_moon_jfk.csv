@@ -1,0 +1,12 @@
+file,level,type,label_start,label_end,detected,start_error_s
+good_moon_jfk_L2.wav,2,pace_fast,0.0,40.65,True,0.46
+good_moon_jfk_L2.wav,2,monotone,0.0,40.65,False,
+good_moon_jfk_L2.wav,2,long_pause,16.26,17.76,True,0.04
+good_moon_jfk_L3.wav,3,pace_fast,0.0,36.44,True,4.24
+good_moon_jfk_L3.wav,3,monotone,0.0,36.44,False,
+good_moon_jfk_L3.wav,3,long_pause,14.57,17.07,True,0.05
+good_moon_jfk_L3.wav,3,low_energy,27.25,38.94,True,9.83
+good_moon_jfk_L4.wav,4,pace_fast,0.0,32.01,True,14.78
+good_moon_jfk_L4.wav,4,monotone,0.0,32.01,False,
+good_moon_jfk_L4.wav,4,long_pause,12.8,16.3,True,0.04
+good_moon_jfk_L4.wav,4,low_energy,24.86,35.51,True,3.42

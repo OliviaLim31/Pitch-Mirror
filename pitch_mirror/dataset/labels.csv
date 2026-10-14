@@ -1,0 +1,23 @@
+clip_id,script_id,speaker_id,source_type,level,flaw_type,start_s,end_s,label_method,labeler,notes
+good_moon_jfk_L2,moon,jfk,synthetic,2,pace_fast,0.00,40.65,injected_exact,make_spectrum.py,tempo x1.3
+good_moon_jfk_L2,moon,jfk,synthetic,2,monotone,0.00,40.65,injected_exact,make_spectrum.py,pitch flattened 50%
+good_moon_jfk_L2,moon,jfk,synthetic,2,long_pause,16.26,17.76,injected_exact,make_spectrum.py,1.5s silence
+good_moon_jfk_L3,moon,jfk,synthetic,3,pace_fast,0.00,36.44,injected_exact,make_spectrum.py,tempo x1.45
+good_moon_jfk_L3,moon,jfk,synthetic,3,monotone,0.00,36.44,injected_exact,make_spectrum.py,pitch flattened 75%
+good_moon_jfk_L3,moon,jfk,synthetic,3,long_pause,14.57,17.07,injected_exact,make_spectrum.py,2.5s silence
+good_moon_jfk_L3,moon,jfk,synthetic,3,low_energy,27.25,38.94,injected_exact,make_spectrum.py,-10 dB
+good_moon_jfk_L4,moon,jfk,synthetic,4,pace_fast,0.00,32.01,injected_exact,make_spectrum.py,tempo x1.65
+good_moon_jfk_L4,moon,jfk,synthetic,4,monotone,0.00,32.01,injected_exact,make_spectrum.py,pitch flattened 95%
+good_moon_jfk_L4,moon,jfk,synthetic,4,long_pause,12.80,16.30,injected_exact,make_spectrum.py,3.5s silence
+good_moon_jfk_L4,moon,jfk,synthetic,4,low_energy,24.86,35.51,injected_exact,make_spectrum.py,-16 dB
+good_challenger_reagan_L2,challenger,reagan,synthetic,2,pace_fast,0.00,36.31,injected_exact,make_spectrum.py,tempo x1.3
+good_challenger_reagan_L2,challenger,reagan,synthetic,2,monotone,0.00,36.31,injected_exact,make_spectrum.py,pitch flattened 50%
+good_challenger_reagan_L2,challenger,reagan,synthetic,2,long_pause,14.53,16.03,injected_exact,make_spectrum.py,1.5s silence
+good_challenger_reagan_L3,challenger,reagan,synthetic,3,pace_fast,0.00,32.57,injected_exact,make_spectrum.py,tempo x1.45
+good_challenger_reagan_L3,challenger,reagan,synthetic,3,monotone,0.00,32.57,injected_exact,make_spectrum.py,pitch flattened 75%
+good_challenger_reagan_L3,challenger,reagan,synthetic,3,long_pause,13.03,15.53,injected_exact,make_spectrum.py,2.5s silence
+good_challenger_reagan_L3,challenger,reagan,synthetic,3,low_energy,24.55,35.07,injected_exact,make_spectrum.py,-10 dB
+good_challenger_reagan_L4,challenger,reagan,synthetic,4,pace_fast,0.00,28.60,injected_exact,make_spectrum.py,tempo x1.65
+good_challenger_reagan_L4,challenger,reagan,synthetic,4,monotone,0.00,28.60,injected_exact,make_spectrum.py,pitch flattened 95%
+good_challenger_reagan_L4,challenger,reagan,synthetic,4,long_pause,11.44,14.94,injected_exact,make_spectrum.py,3.5s silence
+good_challenger_reagan_L4,challenger,reagan,synthetic,4,low_energy,22.47,32.10,injected_exact,make_spectrum.py,-16 dB

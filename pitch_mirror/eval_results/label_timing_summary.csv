@@ -1,0 +1,5 @@
+source_type,flaw_type,n,detection_rate,median_start_error_s,median_end_error_s,median_iou
+synthetic,long_pause,6,1.0,0.04,0.04,0.97
+synthetic,low_energy,4,1.0,5.26,1.6,0.35
+synthetic,monotone,6,0.0,,,
+synthetic,pace_fast,6,1.0,0.23,1.01,0.94

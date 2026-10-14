@@ -34,31 +34,40 @@ def auroc(pos, neg):
     return wins / (len(pos) * len(neg))
 
 
+def good_bad(d):
+    return sorted(p for p in d.glob("*") if p.suffix.lower() in EXT and p.stem.split("_")[0] in ("good", "bad"))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default="data")
     ap.add_argument("--repeats", type=int, default=2)
     ap.add_argument("--baseline", default=None, help="optional good recording of the same text")
     ap.add_argument("--no-ai", action="store_true", help="skip Gemini (saves API calls; scores do not use AI anyway)")
+    ap.add_argument("--plan", action="store_true", help="evaluate every script in dataset/plan.json against its own baseline")
     a = ap.parse_args()
-    d = Path(a.data)
-    files = sorted(p for p in d.glob("*") if p.suffix.lower() in EXT and p.stem.split("_")[0] in ("good", "bad"))
-    if not files:
-        raise SystemExit(f"No good_*/bad_* files found in {d}. See README → Record your dataset.")
-    base = P.analyze_core(a.baseline, use_ai=False) if a.baseline else None
+    if a.plan:
+        plan = json.loads((ROOT / "dataset" / "plan.json").read_text(encoding="utf-8"))
+        jobs = [(f, ROOT / "dataset" / s / info["baseline"]) for s, info in plan["scripts"].items() for f in good_bad(ROOT / "dataset" / s)]
+    else:
+        jobs = [(f, Path(a.baseline) if a.baseline else None) for f in good_bad(Path(a.data))]
+    if not jobs:
+        raise SystemExit(f"No good_*/bad_* files found in {a.data}. See README → Record your dataset.")
+    files = [f for f, _ in jobs]
     rows = []
     for rep in range(a.repeats):
         if rep > 0:  # clear cache so every repeat really re-runs the whole pipeline
             for p in CACHE_DIR.glob("core_*.json"):
                 p.unlink()
-            if base:
-                base = P.analyze_core(a.baseline, use_ai=False)
-        for f in files:
-            if base and Path(a.baseline).resolve() == f.resolve():
+        bases = {}
+        for f, bp in jobs:
+            if bp is None or bp.resolve() == f.resolve():
                 bl = None
             else:
-                bl = base
-            txt = f.with_suffix(".txt").read_text() if f.with_suffix(".txt").exists() else None
+                if bp not in bases:
+                    bases[bp] = P.analyze_core(bp, use_ai=False)
+                bl = bases[bp]
+            txt = f.with_suffix(".txt").read_text(encoding="utf-8") if f.with_suffix(".txt").exists() else None
             r = P.analyze(f, baseline=bl, transcript_text=txt, use_ai=not a.no_ai)
             rows.append({"file": f.name, "label": f.stem.split("_")[0], "repeat": rep, "overall": r["scores"]["overall"],
                          "n_flaws": len(r["flaws"]), "wpm": r["global"]["wpm"], "fillers": r["global"]["filler_count"],
