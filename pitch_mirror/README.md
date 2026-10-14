@@ -1,8 +1,14 @@
 # 🪞 Pitch Mirror
 
-to run the project 
-py -3.12 -m streamlit run .\Pitch-Mirror\pitch_mirror\app.py
-
+## ▶️ Quick start
+```powershell
+git clone https://github.com/OliviaLim31/Pitch-Mirror.git
+cd Pitch-Mirror\pitch_mirror
+py -3.12 -m pip install -r requirements.txt   # first time only
+py -3.12 -m uvicorn server:app --reload
+```
+Wait for `Application startup complete.`, then open **http://localhost:8000**.
+The older Streamlit dashboard still works too: `py -3.12 -m streamlit run app.py` → http://localhost:8501.
 
 **Contrastive speech analytics with temporal flaw grounding.** Built for Multimodal AI Hackathon 2026, Track C.
 
@@ -24,10 +30,10 @@ Check that it worked:
 
 It should print `Python 3.12.x`. Python 3.13 also works.
 
-### Step 2: Unzip the project
-Unzip `pitch_mirror.zip`, for example onto your Desktop. Then move the terminal into that folder:
-- Windows: `cd $HOME\Desktop\pitch_mirror`
-- Mac: `cd ~/Desktop/pitch_mirror`
+### Step 2: Get the project
+Clone it (or unzip a copy), for example onto your Desktop, then move the terminal into the folder that contains `server.py`:
+- Windows: `cd $HOME\Desktop` → `git clone https://github.com/OliviaLim31/Pitch-Mirror.git` → `cd Pitch-Mirror\pitch_mirror`
+- Mac: `cd ~/Desktop` → `git clone https://github.com/OliviaLim31/Pitch-Mirror.git` → `cd Pitch-Mirror/pitch_mirror`
 
 ### Step 3: Create a virtual environment (a private box for this project's libraries)
 **Windows (PowerShell):**
@@ -69,12 +75,13 @@ Without a key the app still works: all acoustic scores and flaws still run, and 
 ## 2. Try it in 2 minutes with the test files
 ```bash
 python make_test_data.py      # makes 4 robot-voice test videos in data/ (needs internet)
-streamlit run app.py
+python -m uvicorn server:app --reload
 ```
-Your browser opens at http://localhost:8501. In the sidebar:
-1. **Recording source → From data/ folder**
-2. **Speech:** `bad_1.mp4`, **Baseline:** `good_1.mp4`
-3. Click **✨ Analyze**. The first run downloads the Whisper speech model (about 150 MB, one time only).
+Open http://localhost:8000:
+1. Under the upload box, click a sample such as `bad_1.mp4` (or **Browse files** / **Record now**).
+2. Pick a **Rubric preset** and click **Analyze your pitch →**. The first run downloads the Whisper speech model (about 150 MB, one time only).
+
+Want to compare against a baseline recording of the same text? The Streamlit dashboard does that: `streamlit run app.py` → http://localhost:8501, then **Recording source → From data/ folder**, **Speech:** `bad_1.mp4`, **Baseline:** `good_1.mp4`, **✨ Analyze**.
 
 Stop the app with **Ctrl+C** in the terminal.
 
@@ -137,7 +144,8 @@ Add `--no-ai` to save Gemini calls (the scores do not use AI anyway).
 | Re-speak has no audio | Text-to-speech needs internet (edge-tts, falling back to gTTS). |
 | Video won't play in the browser | Convert it to mp4 (H.264) or upload the audio instead. `.mov` from iPhone sometimes won't preview, but it still analyzes. |
 | Want to re-run from scratch | Delete the `cache/` folder. |
-| Port already in use | `streamlit run app.py --server.port 8502` |
+| Port already in use | `python -m uvicorn server:app --reload --port 8001` (Streamlit: `streamlit run app.py --server.port 8502`) |
+| Browser says `ERR_CONNECTION_REFUSED` | The server is not running. Start it again and wait for `Application startup complete.` |
 
 Test everything without a key: `MOCK=1 python tests/smoke_test.py` (on Windows PowerShell: `$env:MOCK=1; python tests/smoke_test.py`).
 
@@ -145,7 +153,9 @@ Test everything without a key: `MOCK=1 python tests/smoke_test.py` (on Windows P
 
 ## Project map
 ```
-app.py               Streamlit dashboard
+server.py            web app server (FastAPI) → http://localhost:8000
+web/                 web app pages: index.html, styles.css, app.js
+app.py               Streamlit dashboard (older UI) → http://localhost:8501
 eval.py              good vs bad separation + reproducibility
 make_test_data.py    synthetic test videos (robot voice)
 make_spectrum.py     graded bad-mirror generator with labels
