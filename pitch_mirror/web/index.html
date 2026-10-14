@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pitch Mirror · See exactly which second your pitch loses the room</title>
+  <meta name="description" content="Upload a pitch rehearsal and get timestamped, rubric-scored feedback on pace, fillers, gaze and content that you can reproduce.">
+  <meta name="color-scheme" content="dark">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#/analyze" id="nav-brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Pitch Mirror</span>
+      </a>
+      <nav class="nav" aria-label="Main">
+        <a href="#/analyze" data-nav="analyze" id="nav-analyze">Analyze</a>
+        <a href="#/sessions" data-nav="sessions" id="nav-sessions">Sessions</a>
+        <a href="#/rubrics" data-nav="rubrics" id="nav-rubrics">Rubrics</a>
+        <a href="#/evaluation" data-nav="evaluation" id="nav-evaluation">Evaluation</a>
+      </nav>
+      <button class="workspace" id="workspace-btn" title="Rename workspace">
+        <span class="health-dot" id="health-dot" title="Server health: not checked yet"></span>
+        <span id="workspace-name">Example workspace</span>
+        <span class="avatar" id="workspace-avatar">O</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="view" tabindex="-1"></main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <input type="file" id="file-input" accept="video/mp4,video/quicktime,video/webm,audio/*" hidden>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
