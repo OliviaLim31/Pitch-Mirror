@@ -241,6 +241,8 @@ async function analyzeView() {
 
   const dz = $("#dropzone");
   let countdown = 3; /*倒数3秒*/
+  let previewStream = null; // 预览时打开的摄像头画面
+  const stopPreview = () => { if (previewStream) { previewStream.getTracks().forEach((t) => t.stop()); previewStream = null; } };
   const drawEmpty = () => {
     dz.innerHTML = `<div>
       <div class="dz-icon" id="icon-btn">${ICON.up}</div>
@@ -257,22 +259,54 @@ async function analyzeView() {
     $("#record-btn").onclick = drawRecordSetup;
     $$("[data-sample]", dz).forEach((b) => (b.onclick = () => choose(null, b.dataset.sample)));
   };
-  // 准备间：先选倒数秒数，再开始录
-  function drawRecordSetup() {
-    dz.innerHTML = `<div>
-      <p class="dz-title">Get ready to record</p>
-      <p class="dz-sub">Start after a countdown</p>
-      <div class="chips" style="justify-content:center;margin-bottom:16px">
-        ${[3, 5, 10].map((s) => `<button class="chip ${s === countdown ? "active" : ""}" data-cd="${s}">${s}s</button>`).join("")}
+  // 准备间 + Google Meet 式摄像头预览：先看到自己，选好倒数秒数，再开始录
+  async function drawRecordSetup() {
+    dz.innerHTML = `<div class="rec-setup">
+      <div class="rec-preview">
+        <video id="preview" autoplay muted playsinline></video>
+        <span class="rec-hint">Camera preview · not recording yet</span>
+        <div class="rec-count" id="rec-count" hidden></div>
       </div>
-      <div class="dz-actions">
-        <button class="btn" id="cd-back">Back</button>
-        <button class="btn btn-primary" id="cd-start">Record now</button>
+      <div class="rec-controls">
+        <p class="dz-sub">Choose a countdown duration, then start:</p>
+        <div class="chips">
+          ${[3, 5, 10].map((s) => `<button class="chip ${s === countdown ? "active" : ""}" data-cd="${s}">${s}s</button>`).join("")}
+        </div>
+        <div class="dz-actions">
+          <button class="btn" id="cd-back">Back</button>
+          <button class="btn btn-primary" id="cd-start">Record now</button>
+        </div>
       </div>
     </div>`;
-    $$("[data-cd]", dz).forEach((b) => (b.onclick = () => { countdown = +b.dataset.cd; drawRecordSetup(); }));
-    $("#cd-back").onclick = drawEmpty;
-    $("#cd-start").onclick = startRecording;
+    // 选秒数：只换高亮，不重画（重画会把摄像头关掉又重开）
+    $$("[data-cd]", dz).forEach((b) => (b.onclick = () => {
+      countdown = +b.dataset.cd;
+      $$("[data-cd]", dz).forEach((x) => x.classList.toggle("active", x === b));
+    }));
+    $("#cd-back").onclick = () => { stopPreview(); drawEmpty(); };
+    $("#cd-start").onclick = () => runCountdown();
+    // 打开摄像头，把实时画面放进预览框
+    try { previewStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: true }); }
+    catch { toast("Camera / microphone permission was blocked."); drawEmpty(); return; }
+    const v = $("#preview", dz);
+    if (v) { v.srcObject = previewStream; state.cleanup.push(stopPreview); }
+    else stopPreview(); // 用户在授权弹窗期间离开了页面
+  }
+
+  // 在预览画面上数 3…2…1，数完用已经开着的摄像头开始录
+  function runCountdown() {
+    if (!previewStream) return;
+    const stream = previewStream;
+    const el = $("#rec-count");
+    if ($("#cd-start")) $("#cd-start").disabled = true;
+    let n = countdown;
+    el.hidden = false; el.textContent = n;
+    const tick = setInterval(() => {
+      n--;
+      if (n > 0) el.textContent = n;
+      else { clearInterval(tick); startRecording(stream); }
+    }, 1000);
+    state.cleanup.push(() => clearInterval(tick));
   }
   const drawChosen = () => {
     const name = state.file ? state.file.name : state.sample;
@@ -332,11 +366,14 @@ async function analyzeView() {
     }
   };
 
-  // camera recording
-  async function startRecording() {
-    let stream;
-    try { stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: true }); }
-    catch { toast("Camera / microphone permission was blocked."); return; }
+  // camera recording. `existing` = the camera already opened by the preview (so we don't ask twice)
+  async function startRecording(existing) {
+    let stream = existing instanceof MediaStream ? existing : null;
+    if (!stream) {
+      try { stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: true }); }
+      catch { toast("Camera / microphone permission was blocked."); return; }
+    }
+    previewStream = null; // 预览把摄像头交给录制了，别再被 stopPreview 关掉
     const mime = ["video/webm;codecs=vp9,opus", "video/webm"].find((m) => MediaRecorder.isTypeSupported(m)) || "";
     const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
     const chunks = [];
@@ -363,7 +400,7 @@ async function analyzeView() {
     rec.start(500);
     $("#stop-btn").onclick = () => rec.stop();
   }
-  if (state.autoRecord) { state.autoRecord = false; startRecording(); }
+  if (state.autoRecord) { state.autoRecord = false; drawRecordSetup(); }
 }
 
 function customRubricDialog(done) {
