@@ -242,7 +242,7 @@ async function analyzeView() {
   const dz = $("#dropzone");
   const drawEmpty = () => {
     dz.innerHTML = `<div>
-      <div class="dz-icon">${ICON.up}</div>
+      <div class="dz-icon" id="icon-btn">${ICON.up}</div>
       <p class="dz-title">Drop your pitch video here</p>
       <p class="dz-sub">MP4, MOV or WebM · up to 10 min · stays private to your workspace</p>
       <div class="dz-actions">
@@ -252,6 +252,7 @@ async function analyzeView() {
       ${samples.length ? `<div class="samples">or try a sample: ${samples.filter((s) => !s.endsWith(".txt")).map((s) => `<button data-sample="${esc(s)}">${esc(s)}</button>`).join("")}</div>` : ""}
     </div>`;
     $("#browse-btn").onclick = () => $("#file-input").click();
+    $("#icon-btn").onclick = () => $("#file-input").click();
     $("#record-btn").onclick = startRecording;
     $$("[data-sample]", dz).forEach((b) => (b.onclick = () => choose(null, b.dataset.sample)));
   };
