@@ -12,6 +12,8 @@ const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const fmt = (t) => { t = Math.max(0, Math.round(t || 0)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
 const FILLERS = new Set(["um", "uh", "umm", "uhm", "erm", "er", "ah", "hmm", "like", "so", "actually", "basically"]);
 const isFiller = (w) => FILLERS.has(w.toLowerCase().replace(/[^a-z]/g, ""));
+// file types the server can analyse (same list as VIDEO_EXT in media.py + AUDIO_EXT in server.py)
+const OK_EXT = [".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi", ".wav", ".mp3", ".m4a", ".ogg", ".flac"];
 const COLORS = { amber: "#f5b13d", rose: "#f2566b", sky: "#4f9dff", pink: "#e98ee6", violet: "#a78bfa" };
 const TYPE_COLOR = {
   pace_fast: "amber", pace_slow: "amber", filler: "rose", long_pause: "rose", visual: "sky", low_energy: "sky",
@@ -351,6 +353,14 @@ async function analyzeView() {
     input.onblur = () => finish(true);
   }
   function choose(file, sample) {
+    // 拖进来的文件不经过选择窗口的过滤，所以在这里先检查类型，不要等上传完才被服务器拒绝
+    if (file && !OK_EXT.some((ext) => file.name.toLowerCase().endsWith(ext))) {
+      const ext = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".")) : "This file";
+      toast(`${ext} can't be analysed. Please use a video or audio file (MP4, MOV, WebM, MP3, WAV…)`);
+      dz.classList.add("dz-error");
+      setTimeout(() => dz.classList.remove("dz-error"), 600);
+      return;
+    }
     if (state.localUrl) URL.revokeObjectURL(state.localUrl);
     state.file = file; state.sample = sample;
     state.localUrl = file ? URL.createObjectURL(file) : null;

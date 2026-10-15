@@ -197,6 +197,8 @@ main:focus-visible { outline: none; } /* main is focused after each page change 
   display: grid; place-items: center;
 }
 .dropzone.drag { border-color: var(--violet-2); background: rgba(139, 92, 246, .07); }
+.dropzone.dz-error { border-color: var(--rose); animation: shake .4s var(--ease); } /* 拖错文件：边框变红 + 左右晃一下 */
+@keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
 .dz-icon { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; margin: 0 auto var(--s3); border: 1px solid var(--line-2); background: var(--card-2); color: var(--tx); transition: transform .3s var(--ease); }
 .dropzone:hover .dz-icon { transform: translateY(-3px); }
 .dropzone:hover { background: rgba(144, 56, 226, 0.1); }
