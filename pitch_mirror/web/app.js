@@ -240,6 +240,7 @@ async function analyzeView() {
   </section>`;
 
   const dz = $("#dropzone");
+  let countdown = 3; /*倒数3秒*/
   const drawEmpty = () => {
     dz.innerHTML = `<div>
       <div class="dz-icon" id="icon-btn">${ICON.up}</div>
@@ -253,9 +254,26 @@ async function analyzeView() {
     </div>`;
     $("#browse-btn").onclick = () => $("#file-input").click();
     $("#icon-btn").onclick = () => $("#file-input").click();
-    $("#record-btn").onclick = startRecording;
+    $("#record-btn").onclick = drawRecordSetup;
     $$("[data-sample]", dz).forEach((b) => (b.onclick = () => choose(null, b.dataset.sample)));
   };
+  // 准备间：先选倒数秒数，再开始录
+  function drawRecordSetup() {
+    dz.innerHTML = `<div>
+      <p class="dz-title">Get ready to record</p>
+      <p class="dz-sub">Start after a countdown</p>
+      <div class="chips" style="justify-content:center;margin-bottom:16px">
+        ${[3, 5, 10].map((s) => `<button class="chip ${s === countdown ? "active" : ""}" data-cd="${s}">${s}s</button>`).join("")}
+      </div>
+      <div class="dz-actions">
+        <button class="btn" id="cd-back">Back</button>
+        <button class="btn btn-primary" id="cd-start">Record now</button>
+      </div>
+    </div>`;
+    $$("[data-cd]", dz).forEach((b) => (b.onclick = () => { countdown = +b.dataset.cd; drawRecordSetup(); }));
+    $("#cd-back").onclick = drawEmpty;
+    $("#cd-start").onclick = startRecording;
+  }
   const drawChosen = () => {
     const name = state.file ? state.file.name : state.sample;
     const url = state.file ? state.localUrl : null;
