@@ -246,8 +246,8 @@ async function analyzeView() {
       <p class="dz-title">Drop your pitch video here</p>
       <p class="dz-sub">MP4, MOV or WebM · up to 10 min · stays private to your workspace</p>
       <div class="dz-actions">
-        <button class="btn" id="browse-btn">Browse files</button>
-        <button class="btn" id="record-btn"><span class="rec-dot"></span>Record now</button>
+        <button class="btn dz-btn" id="browse-btn">Browse files</button>  <!-- dz stand for dropzone -->
+        <button class="btn dz-btn" id="record-btn"><span class="rec-dot"></span>Record now</button>
       </div>
       ${samples.length ? `<div class="samples">or try a sample: ${samples.filter((s) => !s.endsWith(".txt")).map((s) => `<button data-sample="${esc(s)}">${esc(s)}</button>`).join("")}</div>` : ""}
     </div>`;

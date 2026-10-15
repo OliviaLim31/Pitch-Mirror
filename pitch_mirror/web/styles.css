@@ -199,10 +199,13 @@ main:focus-visible { outline: none; } /* main is focused after each page change 
 .dropzone.drag { border-color: var(--violet-2); background: rgba(139, 92, 246, .07); }
 .dz-icon { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; margin: 0 auto var(--s3); border: 1px solid var(--line-2); background: var(--card-2); color: var(--tx); transition: transform .3s var(--ease); }
 .dropzone:hover .dz-icon { transform: translateY(-3px); }
+.dropzone:hover { background: rgba(144, 56, 226, 0.1); }
+.dz-btn { border-width: 1.5px; border-radius: 10px; border-color: rgba(70, 37, 160, 0.658); color: #2e224b; background:#e8e5f0 }
+.dz-btn:hover { transform: scale(1.04); background: rgba(186, 138, 226, 0.514);color:#eae8f3 }
 .dz-title { font-weight: 600; font-size: 15.5px; margin: 0 0 6px; }
 .dz-sub { color: var(--tx-3); font-size: 12px; margin: 0 0 var(--s4); }
 .dz-actions { display: flex; gap: 10px; justify-content: center; }
-.rec-dot { width: 9px; height: 9px; border-radius: 50%; background: #e7e5ee; }
+.rec-dot { width: 9px; height: 9px; border-radius: 50%; background: #d60e0e; }
 .rec-dot.live { background: var(--rose); animation: pulse 1.2s infinite; }
 .dz-file { display: flex; align-items: center; gap: var(--s3); justify-content: center; }
 .dz-file video { width: 200px; border-radius: 10px; border: 1px solid var(--line-2); background: #000; }
