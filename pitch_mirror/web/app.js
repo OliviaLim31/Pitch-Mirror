@@ -73,10 +73,10 @@ const workspace = () => JSON.parse(localStorage.getItem("pm.workspace") || '{"na
 // ═══════════════════ 🎓 Checkpoint 4: score-ring maths ═══════════════════
 // A ring is an SVG circle whose outline is a dashed line exactly as long as the circle (C = 2πr).
 // "stroke-dashoffset" slides that dash backwards. Offset 0 → full ring. Offset C → empty ring.
-// 🎓 TODO (Olivia): return how far to slide the dash so the ring is filled `score` percent.
-//    score is 0..100, C is the circumference. Example: score 68, C 100 → should return 32.
+// Fill the ring `score` percent: slide the dash back by the part that should stay empty.
+//    score is 0..100, C is the circumference. Example: score 68, C 100 → returns 32.
 function ringOffset(score, C) {
-  return 0; // ← replace this line
+  return C * (1 - clamp(score, 0, 100) / 100);
 }
 
 // ═══════════════════ 🎓 Checkpoint 5: Prev / Next flaw ═══════════════════
@@ -235,7 +235,7 @@ async function analyzeView() {
     </div>
     <div class="legend" data-anim="5">
       <span><i class="dot" style="background:#a78bfa"></i>Pace, pauses, fillers</span>
-      <span><i class="dot" style="background:#4f9dff"></i>Gaze, gesture, posture</span>
+      <span><i class="dot" style="background:#4f9dff"></i>Gaze, gesture, posture</span>git 
       <span><i class="dot" style="background:#e98ee6"></i>Hook, structure, clarity</span>
     </div>
   </section>`;
