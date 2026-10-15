@@ -50,6 +50,31 @@ function toast(msg) {
   toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
 }
 
+// A confirm box in the site's own style (instead of the browser's plain white confirm()).
+// Gives back true when you press the main button; false on Cancel, Esc, or a click outside the box.
+// `message` may contain HTML, so escape anything the user typed with esc() before passing it in.
+function confirmDialog({ title, message, ok = "OK", danger = false }) {
+  return new Promise((resolve) => {
+    const d = document.createElement("dialog");
+    d.className = "confirm";
+    d.innerHTML = `<form method="dialog" class="stack">
+      <p class="card-title">${esc(title)}</p>
+      <p class="card-sub" style="margin:0;line-height:1.6">${message}</p>
+      <div class="actions" style="justify-content:flex-end">
+        <button class="btn" value="cancel">Cancel</button>
+        <button class="btn ${danger ? "btn-danger" : "btn-primary"}" value="ok">${esc(ok)}</button>
+      </div></form>`;
+    document.body.append(d);
+    d.addEventListener("click", (e) => {
+      if (e.target !== d) return; // clicks on the buttons and text are handled by the form
+      const r = d.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) d.close("cancel");
+    });
+    d.addEventListener("close", () => { resolve(d.returnValue === "ok"); d.remove(); });
+    d.showModal(); // focus lands on Cancel first, the safe choice
+  });
+}
+
 function download(name, blob) {
   const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: name });
   a.click();
@@ -978,11 +1003,19 @@ function wireSessionRows(list) {
     }
   }));
   $$("[data-del]").forEach((b) => (b.onclick = async () => {
-    if (!confirm("Delete this session? This cannot be undone.")) return;
-    await api(`/api/sessions/${b.dataset.del}`, { method: "DELETE" });
-    state.sessions.delete(b.dataset.del);
-    toast("Session deleted");
-    render();
+    const s = list.find((x) => x.id === b.dataset.del);
+    const ok = await confirmDialog({
+      title: "Delete this session?",
+      message: `<b style="color:var(--tx)">${esc(s ? s.name || s.file : "This session")}</b> and its scores and flaws will be removed. This cannot be undone.`,
+      ok: "Delete", danger: true,
+    });
+    if (!ok) return;
+    try {
+      await api(`/api/sessions/${b.dataset.del}`, { method: "DELETE" });
+      state.sessions.delete(b.dataset.del);
+      toast("Session deleted");
+      render();
+    } catch (e) { toast(`Could not delete: ${e.message}`); }
   }));
   const btn = $("#compare-btn");
   if (btn) btn.onclick = () => {

@@ -160,6 +160,8 @@ main:focus-visible { outline: none; } /* main is focused after each page change 
 .btn-lg { height: 40px; padding: 0 20px; font-size: 13.5px; }
 .btn-block { width: 100%; }
 .btn-ghost { border-color: transparent; background: none; color: var(--tx-2); }
+.btn-danger { border-color: transparent; color: #fff; background: linear-gradient(180deg, #f2566b, #d93a50); box-shadow: 0 8px 24px -8px rgba(242, 86, 107, .55); }
+.btn-danger:hover { border-color: transparent; background: linear-gradient(180deg, #f66b7e, #e0485d); }
 .btn-icon { width: 36px; padding: 0; }
 
 .chip {
@@ -371,6 +373,7 @@ dialog {
 }
 dialog::backdrop { background: rgba(5, 4, 10, .6); backdrop-filter: blur(4px); }
 dialog[open] { animation: rise .3s var(--ease); }
+dialog.confirm { width: min(420px, 92vw); } /* yes/no questions get a smaller box than forms */
 
 .toast {
   position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
