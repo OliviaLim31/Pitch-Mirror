@@ -268,7 +268,8 @@ async function analyzeView() {
         <div class="rec-count" id="rec-count" hidden></div>
       </div>
       <div class="rec-controls">
-        <p class="dz-sub">Choose a countdown duration, then start:</p>
+      <h2><span class="rec-dot"></span> Get ready to record </h2>
+        <p class="dz-sub">Choose a countdown duration before recording:</p>
         <div class="chips">
           ${[3, 5, 10].map((s) => `<button class="chip ${s === countdown ? "active" : ""}" data-cd="${s}">${s}s</button>`).join("")}
         </div>
