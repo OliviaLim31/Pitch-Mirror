@@ -63,6 +63,7 @@ const state = {
   autoRecord: false,
   sessions: new Map(), // cache of loaded sessions
   cleanup: [],         // functions to run when we leave a view (stop timers, cameras...)
+  crumb: "",           // optional text a view shows next to the Back button, e.g. "Flaw 2 of 4"
 };
 const custom = () => JSON.parse(localStorage.getItem("pm.customRubrics") || "[]");
 const allRubrics = () => [...state.rubrics, ...custom()];
@@ -144,19 +145,55 @@ function parseHash() {
   return { name: routes[name] ? name : "analyze", args };
 }
 
+// ───────── Back button: every page returns to the page you came from ─────────
+// `trail` mirrors this tab's in-app history. When you opened a page directly (no trail yet),
+// Back goes to the page's logical parent instead, e.g. a flaw → its results.
+const PAGE_NAME = { analyze: "Analyze", analyzing: "Analysis", results: "Results", flaw: "Flaw", progress: "Progress", sessions: "Sessions", rubrics: "Rubrics", evaluation: "Evaluation" };
+const trail = [];
+let replacing = false;
+function track() {
+  const h = location.hash || "#/analyze";
+  if (trail.at(-2) === h) trail.pop();                            // browser Back or our Back button
+  else if (replacing && trail.length) trail[trail.length - 1] = h; // a redirect, e.g. Analysis → Results
+  else if (trail.at(-1) !== h) trail.push(h);
+  replacing = false;
+}
+function parentOf(name, args) {
+  if (name === "flaw") return `#/results/${args[0]}`;
+  if (name === "results" || name === "progress") return "#/sessions";
+  return name === "analyze" ? null : "#/analyze";
+}
+function paintBack(name, args) {
+  const prev = trail.length > 1 ? trail.at(-2) : parentOf(name, args);
+  $("#back-row").hidden = !prev;
+  if (!prev) return;
+  const to = prev.replace(/^#\/?/, "").split("/")[0] || "analyze";
+  const label = to === name ? "Back" : `Back to ${PAGE_NAME[to] || "previous page"}`;
+  $("#back-btn").innerHTML = `<span class="arrow" aria-hidden="true">←</span>${label}`;
+  $("#back-btn").onclick = () => (trail.length > 1 ? history.back() : go(prev));
+  $("#back-crumb").textContent = state.crumb;
+}
+
+let renderSeq = 0;
 async function render() {
   state.cleanup.forEach((fn) => { try { fn(); } catch { /* ignore */ } });
   state.cleanup = [];
+  state.crumb = "";
   const { name, args } = parseHash();
+  const seq = ++renderSeq;
   $$(".nav a").forEach((a) => a.classList.toggle("active", a.dataset.nav === NAV_OF[name]));
   const draw = async () => {
+    paintBack(name, args); // show Back right away, even while the page is still loading
     try { await routes[name](...args); }
-    catch (e) { view.innerHTML = errorCard(e.message); }
+    catch (e) { if (seq === renderSeq) view.innerHTML = errorCard(e.message); }
+    if (seq !== renderSeq) return; // you already moved on (e.g. left a running analysis): don't touch the new page
+    paintBack(name, args); // again, now with the page's crumb
     animateIn();
   };
   // smooth cross-fade between pages when the browser supports View Transitions
   if (document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
     const t = document.startViewTransition(draw);
+    t.ready.catch(() => { /* fade skipped (e.g. you clicked again quickly): the page still updates */ });
     t.finished.finally(() => view.focus({ preventScroll: true }));
   } else {
     await draw();
@@ -164,7 +201,11 @@ async function render() {
   }
   window.scrollTo({ top: 0 });
 }
-const go = (hash) => { if (location.hash === hash) render(); else location.hash = hash; };
+// replace: swap the current history entry instead of adding one (used for redirects, so Back skips them)
+const go = (hash, { replace = false } = {}) => {
+  if (location.hash === hash) return render();
+  if (replace) { replacing = true; location.replace(hash); } else location.hash = hash;
+};
 const errorCard = (msg) => `<div class="card empty" data-anim><p class="card-title" style="justify-content:center">Something went wrong</p>
   <p class="card-sub">${esc(msg)}</p><p><a class="btn" href="#/analyze" style="margin-top:16px">Back to Analyze</a></p></div>`;
 
@@ -359,63 +400,77 @@ async function analyzingView(jobId) {
       <div class="metrics" id="${id}-m"></div></article>`;
   }
 
-  // speech lane: the real waveform of the recording
-  const pk = await peaks(url, 64);
-  const full = await peaks(url, 150);
-  const dur = pk.duration || 0;
-  $("#dur").textContent = dur ? fmt(dur) : "audio";
-  $("#speech-body").innerHTML = `<div class="wave">${pk.bars.map((v, i) => `<i style="height:${Math.round(v * 100)}%;animation-delay:${(i % 9) * 0.08}s"></i>`).join("")}</div>`;
-  $("#mini").insertAdjacentHTML("afterbegin", barsHTML(full.bars));
-
-  // visual lane: 4 real frames grabbed from the video
-  const vb = $("#visual-body");
-  vb.innerHTML = `<div class="frames">${[0, 1, 2, 3].map((i) => `<div class="frame" id="fr${i}"></div>`).join("")}</div>`;
-  if (job.is_video) grabFrames(url, 4).then((imgs) => imgs.forEach((src, i) => { const f = $(`#fr${i}`); if (f && src) f.innerHTML = `<img alt="" src="${src}">`; }));
-
-  // content lane: rubric focus + what we are waiting for
-  const rub = job.rubric || {};
-  $("#content-body").innerHTML = `<div class="quote" id="quote"><div class="skeleton" style="width:90%"></div><div class="skeleton" style="width:75%"></div><div class="skeleton" style="width:55%"></div>
-     <p style="margin-top:14px">${(rub.focus || []).map((f) => `<span class="tag pink" style="margin-right:6px">${esc(f)}</span>`).join("")}</p></div>`;
-
-  let frameTick = 0;
-  const update = (j) => {
-    const p = j.progress || 0;
-    const speech = clamp((p - 0.03) / 0.72), visual = j.is_video ? clamp((p - 0.2) / 0.65) : 1, content = clamp((p - 0.7) / 0.3);
-    const overall = Math.round(p * 100);
-    $("#pct").textContent = overall;
-    const eta = p > 0.04 ? Math.max(1, Math.round((j.elapsed / p) * (1 - p))) : null;
-    $("#eta").textContent = j.status === "done" ? "done" : eta ? `~${eta}s remaining` : "warming up the models…";
-    [["speech", speech], ["visual", visual], ["content", content]].forEach(([id, v]) => {
-      $(`#${id}-pct`).textContent = `${Math.round(v * 100)}%`;
-      $(`#${id}-bar`).style.width = `${v * 100}%`;
-    });
-    $("#speech-m").innerHTML = `stage ${esc(j.stage)}<br>elapsed ${j.elapsed.toFixed(1)}s<br>model whisper · word timestamps`;
-    $("#visual-m").innerHTML = j.is_video ? `frames ${Math.round(visual * 4)} / 4 preview<br>gaze ${j.gemini === "off" ? "needs Gemini key" : "via Gemini " + j.gemini}<br>sampling ~1 fps for scoring` : "no video track<br>visual score skipped<br>&nbsp;";
-    $("#content-m").innerHTML = `${(rub.focus || []).join(" · ") || "rubric"}<br>gemini ${j.gemini}<br>rubric: ${esc(rub.name || "")}`;
-    // animate the frame highlight + timeline playhead
-    frameTick = (frameTick + 1) % 4;
-    $$(".frame").forEach((f, i) => f.classList.toggle("on", job.is_video && i === frameTick));
-    const done = Math.round(p * full.bars.length);
-    $$("#mini i").forEach((b, i) => b.classList.toggle("done", i < done));
-    $("#ph").style.left = `${p * 100}%`;
-    $("#tl-time").textContent = `${fmt(dur * p)} / ${dur ? fmt(dur) : "–:–"}`;
-  };
-  update(job);
+  // alive = this page still owns the job. It turns false when the job fails, when we jump to Results,
+  // or when you leave with Back / the nav (then a toast says where the analysis will be).
   let alive = true;
-  state.cleanup.push(() => (alive = false));
-  while (alive) {
-    await new Promise((r) => setTimeout(r, 700));
+  state.cleanup.push(() => {
     if (!alive) return;
-    try { job = await api(`/api/jobs/${jobId}`); } catch (e) { view.innerHTML = errorCard(e.message); return; }
+    alive = false;
+    toast(job.status === "done" ? "Analysis finished · open it from Sessions" : "Analysis keeps running · it will appear in Sessions when done");
+  });
+  // The page is on screen now: fill it in without making the router wait, so the page
+  // (and its Back button) appears at once instead of only when the analysis ends.
+  live();
+
+  async function live() {
+    // speech lane: the real waveform of the recording
+    const pk = await peaks(url, 64);
+    const full = await peaks(url, 150);
+    if (!alive) return; // you left while the waveform was loading
+    const dur = pk.duration || 0;
+    $("#dur").textContent = dur ? fmt(dur) : "audio";
+    $("#speech-body").innerHTML = `<div class="wave">${pk.bars.map((v, i) => `<i style="height:${Math.round(v * 100)}%;animation-delay:${(i % 9) * 0.08}s"></i>`).join("")}</div>`;
+    $("#mini").insertAdjacentHTML("afterbegin", barsHTML(full.bars));
+
+    // visual lane: 4 real frames grabbed from the video
+    const vb = $("#visual-body");
+    vb.innerHTML = `<div class="frames">${[0, 1, 2, 3].map((i) => `<div class="frame" id="fr${i}"></div>`).join("")}</div>`;
+    if (job.is_video) grabFrames(url, 4).then((imgs) => imgs.forEach((src, i) => { const f = $(`#fr${i}`); if (f && src) f.innerHTML = `<img alt="" src="${src}">`; }));
+
+    // content lane: rubric focus + what we are waiting for
+    const rub = job.rubric || {};
+    $("#content-body").innerHTML = `<div class="quote" id="quote"><div class="skeleton" style="width:90%"></div><div class="skeleton" style="width:75%"></div><div class="skeleton" style="width:55%"></div>
+       <p style="margin-top:14px">${(rub.focus || []).map((f) => `<span class="tag pink" style="margin-right:6px">${esc(f)}</span>`).join("")}</p></div>`;
+
+    let frameTick = 0;
+    const update = (j) => {
+      const p = j.progress || 0;
+      const speech = clamp((p - 0.03) / 0.72), visual = j.is_video ? clamp((p - 0.2) / 0.65) : 1, content = clamp((p - 0.7) / 0.3);
+      const overall = Math.round(p * 100);
+      $("#pct").textContent = overall;
+      const eta = p > 0.04 ? Math.max(1, Math.round((j.elapsed / p) * (1 - p))) : null;
+      $("#eta").textContent = j.status === "done" ? "done" : eta ? `~${eta}s remaining` : "warming up the models…";
+      [["speech", speech], ["visual", visual], ["content", content]].forEach(([id, v]) => {
+        $(`#${id}-pct`).textContent = `${Math.round(v * 100)}%`;
+        $(`#${id}-bar`).style.width = `${v * 100}%`;
+      });
+      $("#speech-m").innerHTML = `stage ${esc(j.stage)}<br>elapsed ${j.elapsed.toFixed(1)}s<br>model whisper · word timestamps`;
+      $("#visual-m").innerHTML = j.is_video ? `frames ${Math.round(visual * 4)} / 4 preview<br>gaze ${j.gemini === "off" ? "needs Gemini key" : "via Gemini " + j.gemini}<br>sampling ~1 fps for scoring` : "no video track<br>visual score skipped<br>&nbsp;";
+      $("#content-m").innerHTML = `${(rub.focus || []).join(" · ") || "rubric"}<br>gemini ${j.gemini}<br>rubric: ${esc(rub.name || "")}`;
+      // animate the frame highlight + timeline playhead
+      frameTick = (frameTick + 1) % 4;
+      $$(".frame").forEach((f, i) => f.classList.toggle("on", job.is_video && i === frameTick));
+      const done = Math.round(p * full.bars.length);
+      $$("#mini i").forEach((b, i) => b.classList.toggle("done", i < done));
+      $("#ph").style.left = `${p * 100}%`;
+      $("#tl-time").textContent = `${fmt(dur * p)} / ${dur ? fmt(dur) : "–:–"}`;
+    };
     update(job);
-    if (job.status === "done") {
-      state.file = null; state.sample = null;
-      setTimeout(() => go(`#/results/${job.session}`), 600);
-      return;
-    }
-    if (job.status === "error") {
-      view.innerHTML = errorCard(`Analysis failed: ${job.error}. Tips: make sure the file plays on your computer, or try a shorter clip.`);
-      return;
+    while (alive) {
+      await new Promise((r) => setTimeout(r, 700));
+      if (!alive) return;
+      try { job = await api(`/api/jobs/${jobId}`); } catch (e) { alive = false; view.innerHTML = errorCard(e.message); return; }
+      update(job);
+      if (job.status === "done") {
+        state.file = null; state.sample = null;
+        setTimeout(() => { if (alive) { alive = false; go(`#/results/${job.session}`, { replace: true }); } }, 600);
+        return;
+      }
+      if (job.status === "error") {
+        alive = false;
+        view.innerHTML = errorCard(`Analysis failed: ${job.error}. Tips: make sure the file plays on your computer, or try a shorter clip.`);
+        return;
+      }
     }
   }
 }
@@ -556,8 +611,8 @@ async function flawView(sid, idxStr) {
   const avg = at.reduce((a, b) => a + b, 0) / at.length;
   const drop = Math.round(((segAvg - avg) / avg) * 100);
 
+  state.crumb = `Flaw ${idx + 1} of ${n}`;
   view.innerHTML = `
-  <p class="crumbs" data-anim><a href="#/results/${sid}">Results</a> › Flaw ${idx + 1} of ${n}</p>
   <div class="page-head" data-anim>
     <div style="display:flex;align-items:center;gap:14px"><span class="pill-time">${fmt(f.start)} – ${fmt(f.end)}</span><h1 class="h1" id="flaw-title" tabindex="-1">${esc(f.label)}${f.count > 1 ? ` in ${Math.max(1, Math.round(f.end - f.start))} seconds` : ""}</h1></div>
     <div class="actions"><button class="btn" id="prev-btn">← Prev</button><button class="btn" id="next-btn">Next →</button></div>
@@ -579,7 +634,7 @@ async function flawView(sid, idxStr) {
       </div>
     </article>
   </div>
-  <div class="grid-3" style="grid-template-columns:1.618fr 1fr 1fr;margin-top:13px">
+  <div class="grid-3 grid-flaw">
     <article class="card why" data-anim="3"><p class="card-title">Why this matters</p>
       <p>${esc(f.why)} ${drop < -3 ? `Estimated attention dropped <b>${drop}%</b> here.` : ""}</p></article>
     <article class="card why" data-anim="4"><p class="card-title">Practice tip</p><p>${esc(f.suggestion)}</p></article>
@@ -715,7 +770,7 @@ async function progressView(a, b) {
     return `<span class="delta ${good ? "" : "bad"}">${d < 0 ? "▼" : "▲"} ${v}</span>`;
   };
   view.innerHTML = `
-  <div class="grid-2" style="grid-template-columns:1fr 1.15fr;gap:21px">
+  <div class="grid-2 grid-progress">
     <div class="stack">
       <div data-anim><p class="eyebrow">Progress · Attempt 1 → Attempt 2</p>
         <h1 class="big-head">${esc(c.headline.text)} <em>${esc(c.headline.value)}</em>.</h1>
@@ -928,5 +983,6 @@ async function checkHealth() {
 
 paintWorkspace();
 checkHealth();
-window.addEventListener("hashchange", render);
+window.addEventListener("hashchange", () => { track(); render(); });
+track();
 render();
