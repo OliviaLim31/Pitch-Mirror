@@ -84,7 +84,7 @@ function ringOffset(score, C) {
 // 🎓 TODO (Olivia): return the index of the neighbour flaw, but never go below 0 or above n - 1.
 //    Example: neighborIndex(0, -1, 4) → 0   neighborIndex(1, +1, 4) → 2   neighborIndex(3, +1, 4) → 3
 function neighborIndex(i, dir, n) {
-  return i; // ← replace this line
+  return clamp(i + dir, 0, n - 1);
 }
 
 function ring(score, { size = 92, stroke = 8, color = "url(#ringGrad)", track = "#2a2736", muted = false } = {}) {
@@ -703,7 +703,10 @@ async function flawView(sid, idxStr) {
   view.innerHTML = `
   <div class="page-head" data-anim>
     <div style="display:flex;align-items:center;gap:14px"><span class="pill-time">${fmt(f.start)} – ${fmt(f.end)}</span><h1 class="h1" id="flaw-title" tabindex="-1">${esc(f.label)}${f.count > 1 ? ` in ${Math.max(1, Math.round(f.end - f.start))} seconds` : ""}</h1></div>
-    <div class="actions"><button class="btn" id="prev-btn">← Prev</button><button class="btn" id="next-btn">Next →</button></div>
+    <div class="actions">
+      <button class="btn" id="prev-btn" title="Previous flaw (← key)" ${idx === 0 ? "disabled" : ""}>← Prev</button>
+      <button class="btn" id="next-btn" title="Next flaw (→ key)" ${idx === n - 1 ? "disabled" : ""}>Next →</button>
+    </div>
   </div>
   <div class="grid-2">
     <article class="card" data-anim="2">
