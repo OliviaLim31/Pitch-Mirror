@@ -25,6 +25,7 @@ const ICON = {
   check: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   chev: "›", trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
   refresh: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>',
+  pencil: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
 };
 
 async function api(path, opts = {}) {
@@ -314,11 +315,41 @@ async function analyzeView() {
     const url = state.file ? state.localUrl : null;
     dz.innerHTML = `<div class="dz-file">
       ${url && state.file.type.startsWith("video") ? `<video src="${url}" muted playsinline preload="metadata"></video>` : `<div class="dz-icon" style="margin:0">${ICON.check}</div>`}
-      <div style="text-align:left"><p class="dz-title">${esc(name)}</p>
-      <p class="dz-sub" style="margin-bottom:12px">${state.file ? (state.file.size / 1048576).toFixed(1) + " MB · ready" : "sample recording · ready"}</p>
-      <button class="btn" id="change-btn">Choose another</button></div></div>`;
+      <div style="text-align:left">
+        <div class="dz-name" id="dz-name"><p class="dz-title">${esc(name)}</p>${state.file ? `<button class="rename-btn" id="rename-btn" type="button" title="Rename" aria-label="Rename file">${ICON.pencil}</button>` : ""}</div>
+        <p class="dz-sub" style="margin-bottom:12px">${state.file ? (state.file.size / 1048576).toFixed(1) + " MB · ready" : "sample recording · ready"}</p>
+        <button class="btn" id="change-btn">Choose another</button></div></div>`;
     $("#change-btn").onclick = () => { choose(null, null); };
+    if (state.file) $("#rename-btn").onclick = startRename; // 示例文件不能改名，只有你自己上传或录的才可以
   };
+  // 改文件名：把标题换成输入框。Enter 保存，Esc 取消，点别处也会保存
+  function startRename() {
+    const f = state.file;
+    const dot = f.name.lastIndexOf(".");
+    const stem = dot > 0 ? f.name.slice(0, dot) : f.name; // 名字本体，例如 recording_2026-10-15
+    const ext = dot > 0 ? f.name.slice(dot) : "";         // 副档名，例如 .webm（保持不变）
+    $("#dz-name").innerHTML = `<input class="dz-rename" id="rename-input" value="${esc(stem)}" maxlength="80" aria-label="File name"><span class="dz-ext">${esc(ext)}</span>`;
+    const input = $("#rename-input");
+    input.focus();
+    input.select();
+    let finished = false;
+    const finish = (save) => {
+      if (finished) return; // Enter 之后输入框消失也会触发 blur，避免做两次
+      finished = true;
+      const clean = input.value.replace(/[\\/:*?"<>|]/g, "").trim();
+      if (save && !clean) toast("The name can't be empty");
+      else if (save && clean !== stem) {
+        state.file = new File([f], clean + ext, { type: f.type, lastModified: f.lastModified });
+        toast(`Renamed to “${clean + ext}”`);
+      }
+      drawChosen();
+    };
+    input.onkeydown = (e) => {
+      if (e.key === "Enter") finish(true);
+      if (e.key === "Escape") finish(false);
+    };
+    input.onblur = () => finish(true);
+  }
   function choose(file, sample) {
     if (state.localUrl) URL.revokeObjectURL(state.localUrl);
     state.file = file; state.sample = sample;
@@ -350,7 +381,7 @@ async function analyzeView() {
     btn.disabled = true;
     btn.innerHTML = `<span class="spinner"></span>${state.file ? "Uploading…" : "Starting…"}`;
     try {
-      const body = { rubric: state.rubricId, speaker: workspace().speaker };
+      const body = { rubric: state.rubricId, speaker: workspace().speaker, name: state.file ? state.file.name : state.sample };
       const cr = custom().find((r) => r.id === state.rubricId);
       if (cr) body.custom = cr;
       if (state.file) {
@@ -436,7 +467,7 @@ async function analyzingView(jobId) {
   const speaker = job.speaker || workspace().speaker;
   view.innerHTML = `
   <div class="page-head" data-anim>
-    <div><p class="eyebrow">Session · ${esc(job.file)} · <span id="dur">–:–</span></p><h1 class="h1">Analyzing ${esc(speaker)}'s pitch</h1></div>
+    <div><p class="eyebrow">Session · ${esc(job.name || job.file)} · <span id="dur">–:–</span></p><h1 class="h1">Analyzing ${esc(speaker)}'s pitch</h1></div>
     <div><div class="big-pct mono"><span id="pct">0</span><small>%</small></div><p class="card-sub" id="eta" style="text-align:right">estimating…</p></div>
   </div>
   <div class="grid-3">
@@ -562,7 +593,7 @@ async function resultsView(sid) {
   const short = { "Fluency (fillers)": "Fillers", "Vocal variety (pitch)": "Vocal variety", "Energy / projection": "Energy", "Content (AI)": "Content · AI", "Visual (AI)": "Eye contact · AI" };
   view.innerHTML = `
   <div class="page-head" data-anim>
-    <div><p class="eyebrow">${esc(s.file.replace(/\.[^.]+$/, ""))} · ${esc(s.rubric.name)} rubric</p><h1 class="h1">${esc(s.speaker)}'s pitch · Results</h1></div>
+    <div><p class="eyebrow">${esc((s.name || s.file).replace(/\.[^.]+$/, ""))} · ${esc(s.rubric.name)} rubric</p><h1 class="h1">${esc(s.speaker)}'s pitch · Results</h1></div>
     <div class="actions"><button class="btn" id="export-btn">Export</button><button class="btn btn-primary" id="rerecord-btn">Re-record</button></div>
   </div>
   <div class="grid-golden">
@@ -633,7 +664,7 @@ async function resultsView(sid) {
     li.onkeydown = (e) => e.key === "Enter" && open();
   });
   $("#export-btn").onclick = () => {
-    download(`${s.file}_pitch-mirror-report.json`, new Blob([JSON.stringify(s, null, 2)], { type: "application/json" }));
+    download(`${(s.name || s.file).replace(/[\\/:*?"<>|]/g, "_")}_pitch-mirror-report.json`, new Blob([JSON.stringify(s, null, 2)], { type: "application/json" }));
     toast("Report exported");
   };
   $("#rerecord-btn").onclick = () => { state.autoRecord = true; state.rubricId = s.rubric.id || state.rubricId; go("#/analyze"); };
@@ -894,7 +925,7 @@ function compareTimelines(c) {
   const dots = (arr, y) => arr.map((f) => `<circle cx="${(f.s / tMax) * W}" cy="${y}" r="4" fill="${f.sev === "high" ? COLORS.rose : f.sev === "medium" ? COLORS.amber : COLORS.violet}"/>`).join("");
   const d = document.createElement("dialog");
   d.innerHTML = `<div class="lane-head"><p class="card-title">Pace timeline · words per minute</p><button class="btn btn-ghost btn-icon" id="close-d" aria-label="Close">✕</button></div>
-    <p class="card-sub"><span style="color:#6e6880">━ Before (${esc(c.a.file)})</span> &nbsp; <span style="color:#a78bfa">━ After (${esc(c.b.file)})</span> &nbsp; green band = comfortable 100–195 wpm</p>
+    <p class="card-sub"><span style="color:#6e6880">━ Before (${esc(c.a.name || c.a.file)})</span> &nbsp; <span style="color:#a78bfa">━ After (${esc(c.b.name || c.b.file)})</span> &nbsp; green band = comfortable 100–195 wpm</p>
     <svg viewBox="-4 -14 ${W + 8} ${H + 36}" style="width:100%;margin-top:14px">${band(100, 195)}
       <path d="${path(c.timeline_a)}" fill="none" stroke="#6e6880" stroke-width="2"/><path d="${path(c.timeline_b)}" fill="none" stroke="#a78bfa" stroke-width="2.4"/>
       ${dots(c.flaws_a, H + 10)}${dots(c.flaws_b, -6)}</svg>
@@ -909,8 +940,8 @@ function compareTimelines(c) {
 function sessionRows(list, selectable) {
   return `<div class="list-row head"><span>Session</span><span>Rubric</span><span>Length</span><span>Score</span><span></span></div>
   ${list.map((s) => `<div class="list-row" data-sid="${s.id}">
-    <span style="display:flex;align-items:center;gap:12px">${selectable ? `<input type="checkbox" data-pick="${s.id}" aria-label="Select ${esc(s.file)}">` : ""}
-      <span><b style="font-weight:500">${esc(s.file)}</b><br><span class="card-sub" style="margin:0">${new Date(s.created * 1000).toLocaleString()} · ${s.n_flaws} flaws</span></span></span>
+    <span style="display:flex;align-items:center;gap:12px">${selectable ? `<input type="checkbox" data-pick="${s.id}" aria-label="Select ${esc(s.name || s.file)}">` : ""}
+      <span><b style="font-weight:500">${esc(s.name || s.file)}</b><br><span class="card-sub" style="margin:0">${new Date(s.created * 1000).toLocaleString()} · ${s.n_flaws} flaws</span></span></span>
     <span class="card-sub" style="margin:0">${esc(s.rubric.name)}</span><span class="mono">${fmt(s.duration)}</span>
     <span class="mono" style="color:var(--violet-2)">${Math.round(s.overall)}</span>
     <span style="text-align:right"><button class="btn btn-ghost btn-icon" data-del="${s.id}" aria-label="Delete session">${ICON.trash}</button></span></div>`).join("")}`;

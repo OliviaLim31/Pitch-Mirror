@@ -209,6 +209,22 @@ main:focus-visible { outline: none; } /* main is focused after each page change 
 .rec-dot.live { background: var(--rose); animation: pulse 1.2s infinite; }
 .dz-file { display: flex; align-items: center; gap: var(--s3); justify-content: center; }
 .dz-file video { width: 200px; border-radius: 10px; border: 1px solid var(--line-2); background: #000; }
+
+/* 改文件名：名字旁边的铅笔按钮 + 点了之后出现的输入框 */
+.dz-name { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; }
+.dz-name .dz-title { margin: 0; }
+.rename-btn {
+  width: 26px; height: 26px; display: grid; place-items: center; flex: none;
+  border: 0; border-radius: var(--r-sm); background: none; color: var(--tx-3); cursor: pointer;
+  transition: color .2s var(--ease), background .2s var(--ease);
+}
+.rename-btn:hover { color: var(--tx); background: rgba(255, 255, 255, .06); }
+.dz-rename {
+  font: inherit; font-weight: 600; font-size: 15.5px; color: var(--tx);
+  width: min(320px, 60vw); padding: 3px 8px; border-radius: var(--r-sm);
+  background: var(--inset); border: 1px solid var(--violet); outline: none;
+}
+.dz-ext { font-weight: 600; font-size: 15.5px; color: var(--tx-3); }
 .preset-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s4); padding: var(--s3) var(--s3) var(--s2); }
 .preset-row .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .legend { display: flex; justify-content: center; gap: var(--s5); color: var(--tx-3); font-size: 12px; margin-top: var(--s4); }

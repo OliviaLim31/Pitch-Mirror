@@ -204,6 +204,7 @@ class AnalyzeReq(BaseModel):
     sample: str | None = None
     rubric: str = "hackathon"
     speaker: str = "Olivia"
+    name: str | None = None  # the name you gave the file: shown in Sessions/Results, never used as a path
 
 
 def _run_job(job_id, path, rubric, speaker, display_name):
@@ -234,11 +235,13 @@ def analyze(req: AnalyzeReq):
     if not path.exists():
         raise HTTPException(404, "File not found")
     rub = next((r for r in load_rubrics() if r["id"] == req.rubric), load_rubrics()[0])
+    # display name: your own name if you gave one (control characters removed, max 80), else the file on disk
+    display = re.sub(r"[\x00-\x1f]", "", req.name or "").strip()[:80] or path.name
     job_id = uuid.uuid4().hex[:10]
-    JOBS[job_id] = {"status": "running", "progress": 0.0, "stage": "Queued", "file": path.name,
+    JOBS[job_id] = {"status": "running", "progress": 0.0, "stage": "Queued", "file": path.name, "name": display,
                     "rubric": rub, "started": time.time(), "is_video": media.is_video(path),
                     "gemini": gemini_mode(), "speaker": req.speaker}
-    threading.Thread(target=_run_job, args=(job_id, path, rub, req.speaker, path.name), daemon=True).start()
+    threading.Thread(target=_run_job, args=(job_id, path, rub, req.speaker, display), daemon=True).start()
     return {"job": job_id}
 
 
