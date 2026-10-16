@@ -349,13 +349,18 @@ async function analyzeView() {
     const name = state.file ? state.file.name : state.sample;
     const url = state.file ? state.localUrl : null;
     dz.innerHTML = `<div class="dz-file">
-      ${url && state.file.type.startsWith("video") ? `<video src="${url}" muted playsinline preload="metadata"></video>` : `<div class="dz-icon" style="margin:0">${ICON.check}</div>`}
+      ${url && state.file.type.startsWith("video") ? `<video class="dz-media" src="${url}" controls playsinline preload="metadata"></video>` : `<div class="dz-icon" style="margin:0">${ICON.check}</div>`}
       <div style="text-align:left">
         <div class="dz-name" id="dz-name"><p class="dz-title">${esc(name)}</p>${state.file ? `<button class="rename-btn" id="rename-btn" type="button" title="Rename" aria-label="Rename file">${ICON.pencil}</button>` : ""}</div>
         <p class="dz-sub" style="margin-bottom:12px">${state.file ? (state.file.size / 1048576).toFixed(1) + " MB · ready" : "sample recording · ready"}${state.previous ? ` · retake of “${esc(state.previous.name)}”` : ""}</p>
+        ${url && state.file.type.startsWith("audio") ? `<audio class="dz-media" src="${url}" controls preload="metadata"></audio>` : ""}
         <button class="btn" id="change-btn">Choose another</button></div></div>`;
     $("#change-btn").onclick = () => { choose(null, null); };
     if (state.file) $("#rename-btn").onclick = startRename; // 示例文件不能改名，只有你自己上传或录的才可以
+    // 让回放的进度条知道影片多长；影片停在第 0.1 秒，缩图才不是一片黑
+    const m = $(".dz-media", dz);
+    if (m) fixDuration(m).then(() => { if (m.isConnected && m.tagName === "VIDEO" && m.currentTime === 0) m.currentTime = 0.1; });
+    state.cleanup.push(() => m && m.pause()); // 离开页面时停止播放
   };
   // 改文件名：把标题换成输入框。Enter 保存，Esc 取消，点别处也会保存
   function startRename() {
@@ -612,11 +617,35 @@ async function analyzingView(jobId) {
   }
 }
 
+// Videos recorded in the browser (MediaRecorder .webm) don't store their length, so Chrome says
+// duration = Infinity: the seek bar can't be dragged and jumping to a time throws an error.
+// Trick: jump far past the end, Chrome scans the file and finds the real length, then jump back to 0.
+// Gives back the real duration (or whatever Chrome has after 3 s, so it can never hang).
+function fixDuration(media) {
+  return new Promise((resolve) => {
+    let finished = false;
+    const done = () => { if (!finished) { finished = true; resolve(media.duration); } };
+    const start = () => {
+      if (Number.isFinite(media.duration)) return done();
+      media.addEventListener("durationchange", function found() {
+        if (!Number.isFinite(media.duration)) return;
+        media.removeEventListener("durationchange", found);
+        media.addEventListener("seeked", done, { once: true });
+        media.currentTime = 0;
+      });
+      media.currentTime = 1e101;
+      setTimeout(done, 3000);
+    };
+    if (media.readyState >= 1) start(); else media.addEventListener("loadedmetadata", start, { once: true });
+  });
+}
+
 function grabFrames(url, n) {
   return new Promise((resolve) => {
     const v = Object.assign(document.createElement("video"), { src: url, muted: true, crossOrigin: "anonymous", preload: "auto" });
     const out = [];
     v.onloadedmetadata = async () => {
+      if (!Number.isFinite(await fixDuration(v))) return resolve([]); // still unknown: skip the thumbnails
       const c = document.createElement("canvas");
       c.width = 112; c.height = 184;
       const ctx = c.getContext("2d");

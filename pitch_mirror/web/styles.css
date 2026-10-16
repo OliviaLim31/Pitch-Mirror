@@ -212,7 +212,8 @@ main:focus-visible { outline: none; } /* main is focused after each page change 
 .rec-dot { width: 9px; height: 9px; border-radius: 50%; background: #d60e0e; }
 .rec-dot.live { background: var(--rose); animation: pulse 1.2s infinite; }
 .dz-file { display: flex; align-items: center; gap: var(--s3); justify-content: center; }
-.dz-file video { width: 200px; border-radius: 10px; border: 1px solid var(--line-2); background: #000; }
+.dz-file video { width: 320px; max-width: 100%; border-radius: 10px; border: 1px solid var(--line-2); background: #000; } /* 够大才看得清楚自己的表情 */
+.dz-file audio { display: block; width: 280px; max-width: 100%; margin: 0 0 12px; color-scheme: dark; }
 
 /* 改文件名：名字旁边的铅笔按钮 + 点了之后出现的输入框 */
 .dz-name { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; }
@@ -410,6 +411,8 @@ dialog.confirm { width: min(420px, 92vw); } /* yes/no questions get a smaller bo
   .grid-golden, .grid-3, .grid-2, .grid-flaw, .grid-progress { grid-template-columns: 1fr; }
   .page-head { flex-wrap: wrap; }
   .rec-setup { grid-template-columns: 1fr; place-items: center; }  /* 手机上改回上下排列 */
+  .dz-file { flex-direction: column; align-items: stretch; }        /* 手机上回放影片在上、文件资讯在下 */
+  .dz-file video { width: 100%; }
   .nav { display: none; }
   main { padding: var(--s4); }
   .preset-row { flex-direction: column; align-items: stretch; }
