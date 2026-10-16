@@ -262,7 +262,7 @@ async function analyzeView() {
     </div>
     <div class="legend" data-anim="5">
       <span><i class="dot" style="background:#a78bfa"></i>Pace, pauses, fillers</span>
-      <span><i class="dot" style="background:#4f9dff"></i>Gaze, gesture, posture</span>git 
+      <span><i class="dot" style="background:#4f9dff"></i>Gaze, gesture, posture</span>
       <span><i class="dot" style="background:#e98ee6"></i>Hook, structure, clarity</span>
     </div>
   </section>`;
@@ -292,7 +292,7 @@ async function analyzeView() {
     dz.innerHTML = `<div class="rec-setup">
       <div class="rec-preview">
         <video id="preview" autoplay muted playsinline></video>
-        <span class="rec-hint">Camera preview · not recording yet</span>
+        <span class="rec-hint" id="rec-hint">Starting camera…</span>
         <div class="rec-count" id="rec-count" hidden></div>
       </div>
       <div class="rec-controls">
@@ -303,7 +303,7 @@ async function analyzeView() {
         </div>
         <div class="dz-actions">
           <button class="btn" id="cd-back">Back</button>
-          <button class="btn btn-primary" id="cd-start">Record now</button>
+          <button class="btn btn-primary" id="cd-start" disabled><span class="spinner"></span>Starting camera…</button>
         </div>
       </div>
     </div>`;
@@ -316,10 +316,15 @@ async function analyzeView() {
     $("#cd-start").onclick = () => runCountdown();
     // 打开摄像头，把实时画面放进预览框
     try { previewStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: true }); }
-    catch { toast("Camera / microphone permission was blocked."); drawEmpty(); return; }
+    catch { toast("Camera / microphone is blocked. Allow it in the address bar, then try again."); drawEmpty(); return; }
     const v = $("#preview", dz);
-    if (v) { v.srcObject = previewStream; state.cleanup.push(stopPreview); }
-    else stopPreview(); // 用户在授权弹窗期间离开了页面
+    if (!v) { stopPreview(); return; } // 用户在授权弹窗期间离开了页面
+    v.srcObject = previewStream;
+    state.cleanup.push(stopPreview);
+    // 摄像头真的开好了，才让 Record now 可以按（以前太早按会没反应）
+    $("#rec-hint").textContent = "Camera preview · not recording yet";
+    $("#cd-start").disabled = false;
+    $("#cd-start").textContent = "Record now";
   }
 
   // 在预览画面上数 3…2…1，数完用已经开着的摄像头开始录
