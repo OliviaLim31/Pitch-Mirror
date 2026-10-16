@@ -89,6 +89,8 @@ const state = {
   sample: null,        // or the name of a sample in data/
   localUrl: null,      // object URL for the chosen file (used by the Analyzing view)
   autoRecord: false,
+  retakeOf: null,      // {id, name} of the session you pressed Re-record on (set only during that visit)
+  previous: null,      // the session the chosen file is a retake of, so its results can be compared
   sessions: new Map(), // cache of loaded sessions
   cleanup: [],         // functions to run when we leave a view (stop timers, cameras...)
   crumb: "",           // optional text a view shows next to the Back button, e.g. "Flaw 2 of 4"
@@ -246,6 +248,7 @@ async function getSession(sid, fresh = false) {
 
 // ═══════════════════ 1 · Analyze (upload) ═══════════════════
 async function analyzeView() {
+  if (!state.autoRecord) state.retakeOf = null; // 只有从结果页按 Re-record 进来的这一趟才算"重录"
   if (!state.rubrics.length) state.rubrics = await api("/api/rubrics").catch(() => []);
   const samples = await api("/api/samples").catch(() => []);
   view.innerHTML = `
@@ -349,7 +352,7 @@ async function analyzeView() {
       ${url && state.file.type.startsWith("video") ? `<video src="${url}" muted playsinline preload="metadata"></video>` : `<div class="dz-icon" style="margin:0">${ICON.check}</div>`}
       <div style="text-align:left">
         <div class="dz-name" id="dz-name"><p class="dz-title">${esc(name)}</p>${state.file ? `<button class="rename-btn" id="rename-btn" type="button" title="Rename" aria-label="Rename file">${ICON.pencil}</button>` : ""}</div>
-        <p class="dz-sub" style="margin-bottom:12px">${state.file ? (state.file.size / 1048576).toFixed(1) + " MB · ready" : "sample recording · ready"}</p>
+        <p class="dz-sub" style="margin-bottom:12px">${state.file ? (state.file.size / 1048576).toFixed(1) + " MB · ready" : "sample recording · ready"}${state.previous ? ` · retake of “${esc(state.previous.name)}”` : ""}</p>
         <button class="btn" id="change-btn">Choose another</button></div></div>`;
     $("#change-btn").onclick = () => { choose(null, null); };
     if (state.file) $("#rename-btn").onclick = startRename; // 示例文件不能改名，只有你自己上传或录的才可以
@@ -382,7 +385,8 @@ async function analyzeView() {
     };
     input.onblur = () => finish(true);
   }
-  function choose(file, sample) {
+  // previous = the session this file is a retake of (only the Re-record flow passes it; anything else clears it)
+  function choose(file, sample, previous = null) {
     // 拖进来的文件不经过选择窗口的过滤，所以在这里先检查类型，不要等上传完才被服务器拒绝
     if (file && !OK_EXT.some((ext) => file.name.toLowerCase().endsWith(ext))) {
       const ext = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".")) : "This file";
@@ -392,7 +396,7 @@ async function analyzeView() {
       return;
     }
     if (state.localUrl) URL.revokeObjectURL(state.localUrl);
-    state.file = file; state.sample = sample;
+    state.file = file; state.sample = sample; state.previous = file ? previous : null;
     state.localUrl = file ? URL.createObjectURL(file) : null;
     $("#analyze-btn").disabled = !(file || sample);
     (file || sample) ? drawChosen() : drawEmpty();
@@ -421,7 +425,8 @@ async function analyzeView() {
     btn.disabled = true;
     btn.innerHTML = `<span class="spinner"></span>${state.file ? "Uploading…" : "Starting…"}`;
     try {
-      const body = { rubric: state.rubricId, speaker: workspace().speaker, name: state.file ? state.file.name : state.sample };
+      const body = { rubric: state.rubricId, speaker: workspace().speaker, name: state.file ? state.file.name : state.sample,
+                     previous: state.previous ? state.previous.id : null };
       const cr = custom().find((r) => r.id === state.rubricId);
       if (cr) body.custom = cr;
       if (state.file) {
@@ -465,9 +470,13 @@ async function analyzeView() {
     rec.onstop = () => {
       stopAll();
       if (!document.body.contains(dz)) return;
-      const file = new File(chunks, `recording_${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.webm`, { type: "video/webm" });
-      choose(file, null);
-      toast("Recording ready. Press Analyze.");
+      // 重录时直接取名 "上一次的名字 (retake)"，Sessions 列表里一眼认得出是同一份练习
+      const prev = state.retakeOf;
+      const base = prev ? prev.name.replace(/\.[^.]+$/, "").replace(/ \(retake\)$/, "") : "";
+      const fname = prev ? `${base} (retake).webm` : `recording_${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.webm`;
+      const file = new File(chunks, fname, { type: "video/webm" });
+      choose(file, null, prev);
+      toast(prev ? "Retake ready. Press Analyze to compare it with your last take." : "Recording ready. Press Analyze.");
     };
     rec.start(500);
     $("#stop-btn").onclick = () => rec.stop();
@@ -590,7 +599,7 @@ async function analyzingView(jobId) {
       try { job = await api(`/api/jobs/${jobId}`); } catch (e) { alive = false; view.innerHTML = errorCard(e.message); return; }
       update(job);
       if (job.status === "done") {
-        state.file = null; state.sample = null;
+        state.file = null; state.sample = null; state.previous = null;
         setTimeout(() => { if (alive) { alive = false; go(`#/results/${job.session}`, { replace: true }); } }, 600);
         return;
       }
@@ -634,7 +643,10 @@ async function resultsView(sid) {
   view.innerHTML = `
   <div class="page-head" data-anim>
     <div><p class="eyebrow">${esc((s.name || s.file).replace(/\.[^.]+$/, ""))} · ${esc(s.rubric.name)} rubric</p><h1 class="h1">${esc(s.speaker)}'s pitch · Results</h1></div>
-    <div class="actions"><button class="btn" id="export-btn">Export</button><button class="btn btn-primary" id="rerecord-btn">Re-record</button></div>
+    <div class="actions"><button class="btn" id="export-btn">Export</button>
+      ${s.previous
+        ? `<button class="btn" id="rerecord-btn">Re-record</button><button class="btn btn-primary" id="compare-prev-btn">Compare with previous take →</button>`
+        : `<button class="btn btn-primary" id="rerecord-btn">Re-record</button>`}</div>
   </div>
   <div class="grid-golden">
     <div class="stack">
@@ -707,7 +719,13 @@ async function resultsView(sid) {
     download(`${(s.name || s.file).replace(/[\\/:*?"<>|]/g, "_")}_pitch-mirror-report.json`, new Blob([JSON.stringify(s, null, 2)], { type: "application/json" }));
     toast("Report exported");
   };
-  $("#rerecord-btn").onclick = () => { state.autoRecord = true; state.rubricId = s.rubric.id || state.rubricId; go("#/analyze"); };
+  $("#rerecord-btn").onclick = () => {
+    state.autoRecord = true;
+    state.retakeOf = { id: sid, name: s.name || s.file }; // 记住"现在是在重录哪一次"
+    state.rubricId = s.rubric.id || state.rubricId;
+    go("#/analyze");
+  };
+  if (s.previous) $("#compare-prev-btn").onclick = () => go(`#/progress/${s.previous}/${sid}`); // 旧的在前（Before），新的在后（After）
 }
 
 function drawAttention(el, vals, flaws, dur, seek) {

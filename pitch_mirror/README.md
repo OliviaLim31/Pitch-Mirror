@@ -166,7 +166,7 @@ ARCHITECTURE.md      how it works, explained simply
 TRACK_C_NOTES.md     official Track C requirements mapped to features
 ```
 
-## Submission checklist (deadline Thu 15 Oct, 2:45 AM MYT)
+## Submission checklist (deadline Thu 15 Oct, 2:45 PM MYT)
 - [ ] Public GitHub repo with this code and README (do **not** upload `.env`)
 - [ ] Dataset in the repo or a public Google Drive link in this README
 - [ ] Technical documentation of max 6 pages (start from ARCHITECTURE.md + dataset/README.md + eval charts)

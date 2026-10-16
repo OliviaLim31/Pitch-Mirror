@@ -148,13 +148,19 @@ def headline(scores, ai):
     return "Several moments lose the room"
 
 
+def session_exists(sid):
+    return bool(sid) and re.fullmatch(r"[a-f0-9]{10}", sid) is not None and (SESSIONS / f"{sid}.json").exists()
+
+
 def public_session(s, full=True):
     r = s["result"]
     ai = r.get("ai") if r.get("ai") and not r["ai"].get("error") else None
+    prev = s.get("previous")
     summary = {
         "id": s["id"], "name": s["name"], "speaker": s.get("speaker", "Olivia"), "rubric": s["rubric"],
         "created": s["created"], "file": r["file"], "duration": r["global"]["duration"],
         "overall": r["scores"]["overall"], "n_flaws": len(s["display_flaws"]), "is_video": r["is_video"],
+        "previous": prev if session_exists(prev) else None,  # the take this one re-recorded (gone if it was deleted)
     }
     if not full:
         return summary
@@ -205,9 +211,10 @@ class AnalyzeReq(BaseModel):
     rubric: str = "hackathon"
     speaker: str = "Olivia"
     name: str | None = None  # the name you gave the file: shown in Sessions/Results, never used as a path
+    previous: str | None = None  # id of the session this take re-records (from the Re-record button)
 
 
-def _run_job(job_id, path, rubric, speaker, display_name):
+def _run_job(job_id, path, rubric, speaker, display_name, previous=None):
     job = JOBS[job_id]
 
     def prog(msg, frac):
@@ -217,7 +224,8 @@ def _run_job(job_id, path, rubric, speaker, display_name):
         res = P.analyze(path, baseline=None, transcript_text=None, use_ai=gemini_mode() != "off", progress=prog)
         sid = uuid.uuid4().hex[:10]
         s = {"id": sid, "name": display_name, "speaker": speaker, "rubric": rubric, "created": time.time(),
-             "path": str(path), "result": res, "display_flaws": group_flaws(res["flaws"]), "fixed": []}
+             "path": str(path), "result": res, "display_flaws": group_flaws(res["flaws"]), "fixed": [],
+             "previous": previous}
         save_session(s)
         job.update(status="done", progress=1.0, session=sid, stage="Done")
     except Exception as e:  # pragma: no cover
@@ -237,11 +245,12 @@ def analyze(req: AnalyzeReq):
     rub = next((r for r in load_rubrics() if r["id"] == req.rubric), load_rubrics()[0])
     # display name: your own name if you gave one (control characters removed, max 80), else the file on disk
     display = re.sub(r"[\x00-\x1f]", "", req.name or "").strip()[:80] or path.name
+    previous = req.previous if session_exists(req.previous) else None  # ignore ids that don't exist
     job_id = uuid.uuid4().hex[:10]
     JOBS[job_id] = {"status": "running", "progress": 0.0, "stage": "Queued", "file": path.name, "name": display,
                     "rubric": rub, "started": time.time(), "is_video": media.is_video(path),
                     "gemini": gemini_mode(), "speaker": req.speaker}
-    threading.Thread(target=_run_job, args=(job_id, path, rub, req.speaker, display), daemon=True).start()
+    threading.Thread(target=_run_job, args=(job_id, path, rub, req.speaker, display, previous), daemon=True).start()
     return {"job": job_id}
 
 
