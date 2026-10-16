@@ -28,7 +28,14 @@ Check that it worked:
 - Windows: `py -3.12 --version`
 - Mac: `python3.12 --version`
 
-It should print `Python 3.12.x`. Python 3.13 also works.
+It should print `Python 3.12.x`.
+
+**Supported Python versions: 3.11, 3.12, 3.13 and 3.14** (64-bit). If you already have one of the others,
+use it and replace `3.12` in every command with your version, e.g. `py -3.14 -m pip install -r requirements.txt`.
+On 3.11, pip automatically installs slightly older numpy / scipy / librosa (see `requirements.txt`); the
+smoke test and the web app give identical scores on all four versions.
+Not supported: **3.10 or older** (numpy, scipy and librosa no longer support them) and **3.15** (ctranslate2,
+the engine Whisper runs on, has no build for it yet).
 
 ### Step 2: Get the project
 Clone it (or unzip a copy), for example onto your Desktop, then move the terminal into the folder that contains `server.py`:

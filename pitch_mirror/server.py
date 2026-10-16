@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from pitch_mirror import pipeline as P, media, gemini, tts, flaws as F
-from pitch_mirror.config import ROOT, CACHE_DIR, FILLERS, gemini_mode, GEMINI_MODEL
+from pitch_mirror.config import ROOT, CACHE_DIR, FILLERS, gemini_mode, GEMINI_MODEL, MAX_FRAMES
 
 WEB = ROOT / "web"
 UPLOADS = ROOT / "uploads"
@@ -226,7 +226,8 @@ def analyze(req: AnalyzeReq):
     job_id = uuid.uuid4().hex[:10]
     JOBS[job_id] = {"status": "running", "progress": 0.0, "stage": "Queued", "file": path.name, "name": display,
                     "started": time.time(), "is_video": media.is_video(path),
-                    "gemini": gemini_mode(), "speaker": req.speaker}
+                    "gemini": gemini_mode(), "speaker": req.speaker,
+                    "max_frames": MAX_FRAMES}  # frames sent to Gemini: 1 per second, at most this many
     threading.Thread(target=_run_job, args=(job_id, path, req.speaker, display, previous), daemon=True).start()
     return {"job": job_id}
 

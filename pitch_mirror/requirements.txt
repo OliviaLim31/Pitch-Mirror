@@ -1,11 +1,16 @@
-# Python 3.12 or 3.13 required (tested on 3.13.5)
+# Python 3.11, 3.12, 3.13 or 3.14 (3.15 is not supported yet: ctranslate2 has no build for it)
+# The `; python_version …` parts pick slightly older numpy / scipy / librosa on 3.11, because their
+# newest versions need Python 3.12+. Everything else is the same on every version.
 streamlit==1.65.0
 faster-whisper==1.2.1
 ctranslate2==4.8.3
-librosa==1.0.0
+librosa==1.0.0; python_version >= "3.12"
+librosa==0.11.0; python_version < "3.12"
 numba==0.68.0
-scipy==1.18.1
-numpy==2.5.4
+scipy==1.18.1; python_version >= "3.12"
+scipy==1.17.1; python_version < "3.12"
+numpy==2.5.4; python_version >= "3.12"
+numpy==2.4.6; python_version < "3.12"
 soundfile==0.14.0
 opencv-python-headless==5.0.0.93
 google-genai==2.30.0

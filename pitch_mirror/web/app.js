@@ -586,7 +586,8 @@ async function analyzingView(jobId) {
   </div>
   <div class="grid-3">
     ${lane("speech", "#a78bfa", "Speech", "Transcribing with word-level timestamps", "", 2)}
-    ${lane("visual", "#4f9dff", "Visual", job.is_video ? "Sampling 2 fps · gaze &amp; gesture" : "Audio-only file · no frames", "sky", 3)}
+    ${lane("visual", "#4f9dff", "Visual", !job.is_video ? "Audio-only file · no frames"
+      : job.gemini === "off" ? "Preview only · gaze &amp; gesture need Gemini" : "1 frame per second · gaze &amp; gesture", "sky", 3)}
     ${lane("content", "#e98ee6", "Content", "Hook, structure &amp; clarity notes", "pink", 4)}
   </div>
   <div class="card live-tl" data-anim="5"><span class="label">LIVE TIMELINE</span>
@@ -645,7 +646,13 @@ async function analyzingView(jobId) {
         $(`#${id}-bar`).style.width = `${v * 100}%`;
       });
       $("#speech-m").innerHTML = `stage ${esc(j.stage)}<br>elapsed ${j.elapsed.toFixed(1)}s<br>model whisper · word timestamps`;
-      $("#visual-m").innerHTML = j.is_video ? `frames ${Math.round(visual * 4)} / 4 preview<br>gaze ${j.gemini === "off" ? "needs Gemini key" : "via Gemini " + j.gemini}<br>sampling ~1 fps for scoring` : "no video track<br>visual score skipped<br>&nbsp;";
+      // 4 张小图只是预览（平均分布在整段影片）；真正送去分析的是每秒 1 张、最多 max_frames 张，而且只有开 Gemini 才会送
+      const maxF = j.max_frames || 20;
+      const sent = dur ? Math.min(maxF, Math.max(1, Math.floor(dur))) : maxF; // 跟 media.py 的 sample_frames 同一条公式
+      const across = `preview · 4 moments across ${dur ? fmt(dur) : "the video"}`;
+      $("#visual-m").innerHTML = !j.is_video ? "no video track<br>visual score skipped<br>&nbsp;"
+        : j.gemini === "off" ? `${across}<br>gaze &amp; gesture need a Gemini key<br>no frames sent for scoring`
+        : `${across}<br>${sent} frames sent to Gemini<br>1 per second, max ${maxF}`;
       $("#content-m").innerHTML = `gemini ${j.gemini}<br>${j.gemini === "off" ? "content notes need a Gemini key" : "content notes on"}<br>&nbsp;`;
       // animate the frame highlight + timeline playhead
       frameTick = (frameTick + 1) % 4;
