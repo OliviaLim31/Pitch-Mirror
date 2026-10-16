@@ -178,6 +178,9 @@ main:focus-visible { outline: none; } /* main is focused after each page change 
 /* ───────── progress & bars ───────── */
 .bar { height: 6px; border-radius: 999px; background: #24212e; overflow: hidden; }
 .bar > i { display: block; height: 100%; border-radius: inherit; width: 0; transition: width .9s var(--ease); background: linear-gradient(90deg, #7c4dff, #b794ff); }
+/* "working…" with no way to know the %: a short piece slides back and forth instead of a fake percentage */
+.bar.busy > i { width: 35%; animation: bar-busy 1.1s ease-in-out infinite alternate; }
+@keyframes bar-busy { from { transform: translateX(-20%); } to { transform: translateX(210%); } }
 .bar.sky > i { background: linear-gradient(90deg, #3b82f6, #7cb6ff); }
 .bar.pink > i { background: linear-gradient(90deg, #d46fd1, #f0a8ee); }
 .metrics { font-family: var(--mono); font-size: 11.5px; color: var(--tx-2); line-height: 1.95; margin: var(--s3) 0 0; }
@@ -212,6 +215,7 @@ main:focus-visible { outline: none; } /* main is focused after each page change 
 .dz-file-actions { display: flex; gap: 10px; flex-wrap: wrap; } /* Re-record / Choose another + Analyze, side by side */
 .rec-dot { width: 9px; height: 9px; border-radius: 50%; background: #d60e0e; }
 .rec-dot.live { background: var(--rose); animation: pulse 1.2s infinite; }
+.rec-controls h2 .rec-dot { display: inline-block; margin-right: 6px; vertical-align: middle; } /* a span ignores width/height until it's inline-block */
 .dz-file { display: flex; align-items: center; gap: var(--s3); justify-content: center; }
 .dz-file video { width: 320px; max-width: 100%; border-radius: 10px; border: 1px solid var(--line-2); background: #000; } /* 够大才看得清楚自己的表情 */
 .dz-file audio { display: block; width: 280px; max-width: 100%; margin: 0 0 12px; color-scheme: dark; }
@@ -433,7 +437,13 @@ dialog.confirm { width: min(420px, 92vw); } /* yes/no questions get a smaller bo
   .dz-file { flex-direction: column; align-items: stretch; }        /* 手机上回放影片在上、文件资讯在下 */
   .dz-file video { width: 100%; }
   .nav { display: none; }
+  .brand, .workspace { white-space: nowrap; } /* 手机上不要让 "Pitch Mirror" 折成两行 */
   main { padding: var(--s4); }
   .list-row { grid-template-columns: 1fr 70px 70px; }
   .list-row > :nth-child(n+4) { display: none; }
+}
+
+/* very narrow phones: keep the health dot + avatar, hide the workspace name so the top bar stays on one line */
+@media (max-width: 520px) {
+  #workspace-name { display: none; }
 }

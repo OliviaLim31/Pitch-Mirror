@@ -157,11 +157,12 @@ def public_session(s, full=True):
             "transcript": r["transcript"], "version": r.get("version")}
 
 
-# ───────────────────────── 🎓 Checkpoint 2: your first API endpoint ─────────────────────────
-# 🎓 TODO (Olivia): write a GET endpoint at "/api/health" that returns
-#    {"ok": True, "gemini": gemini_mode(), "model": GEMINI_MODEL}
-#    Hint: look at how @app.get("/api/samples") is written just below, and copy its shape.
-#    The green dot next to the workspace name in the top bar lights up once this works.
+# ───────────────────────── health check (was 🎓 Checkpoint 2) ─────────────────────────
+@app.get("/api/health")
+def health():
+    """The page asks this when it opens: answering lights the green dot next to the workspace name,
+    and the dot's tooltip shows which Gemini mode the server runs in."""
+    return {"ok": True, "gemini": gemini_mode(), "model": GEMINI_MODEL}
 
 
 # ───────────────────────── API ─────────────────────────

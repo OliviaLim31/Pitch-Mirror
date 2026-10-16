@@ -636,14 +636,20 @@ async function analyzingView(jobId) {
     let frameTick = 0;
     const update = (j) => {
       const p = j.progress || 0;
-      const speech = clamp((p - 0.03) / 0.72), visual = j.is_video ? clamp((p - 0.2) / 0.65) : 1, content = clamp((p - 0.7) / 0.3);
+      // 服务器真正的步骤：抽音频 5% → Whisper 15% → 测量 55% → Gemini 75%（只有开着才有）→ 完成 100%
+      // Speech = Gemini 之前的所有步骤；Visual / Content 只在 Gemini 那一步真的进行，没开就老实写 skipped
+      const finished = j.status === "done";
+      const speech = finished ? 1 : clamp(p / 0.75);
+      const aiLane = (runs) => (!runs ? "skipped" : finished ? 1 : p >= 0.75 ? "busy" : 0);
       const overall = Math.round(p * 100);
       $("#pct").textContent = overall;
       const eta = p > 0.04 ? Math.max(1, Math.round((j.elapsed / p) * (1 - p))) : null;
       $("#eta").textContent = j.status === "done" ? "done" : eta ? `~${eta}s remaining` : "warming up the models…";
-      [["speech", speech], ["visual", visual], ["content", content]].forEach(([id, v]) => {
-        $(`#${id}-pct`).textContent = `${Math.round(v * 100)}%`;
-        $(`#${id}-bar`).style.width = `${v * 100}%`;
+      [["speech", speech], ["visual", aiLane(j.is_video && j.gemini !== "off")], ["content", aiLane(j.gemini !== "off")]].forEach(([id, v]) => {
+        const bar = $(`#${id}-bar`);
+        bar.parentElement.classList.toggle("busy", v === "busy"); // 来回滑动 = 正在做，但没办法知道几 %
+        $(`#${id}-pct`).textContent = v === "skipped" ? "skipped" : v === "busy" ? "working…" : `${Math.round(v * 100)}%`;
+        bar.style.width = v === "busy" ? "" : v === "skipped" ? "0%" : `${v * 100}%`;
       });
       $("#speech-m").innerHTML = `stage ${esc(j.stage)}<br>elapsed ${j.elapsed.toFixed(1)}s<br>model whisper · word timestamps`;
       // 4 张小图只是预览（平均分布在整段影片）；真正送去分析的是每秒 1 张、最多 max_frames 张，而且只有开 Gemini 才会送
@@ -1212,7 +1218,7 @@ async function checkHealth() {
     dot.classList.add("ok");
     dot.title = `Server OK · Gemini: ${h.gemini}${h.model ? " (" + h.model + ")" : ""}`;
   } catch {
-    dot.title = "Server health endpoint not found yet (🎓 Checkpoint 2 in server.py)";
+    dot.title = "Can't reach the server. Is it running? (py -3.12 -m uvicorn server:app --reload)";
   }
 }
 
