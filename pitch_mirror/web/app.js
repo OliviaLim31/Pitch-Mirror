@@ -14,6 +14,21 @@ const FILLERS = new Set(["um", "uh", "umm", "uhm", "erm", "er", "ah", "hmm", "li
 const isFiller = (w) => FILLERS.has(w.toLowerCase().replace(/[^a-z]/g, ""));
 // file types the server can analyse (same list as VIDEO_EXT in media.py + AUDIO_EXT in server.py)
 const OK_EXT = [".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi", ".wav", ".mp3", ".m4a", ".ogg", ".flac"];
+// practice prompts for the record screen ("Pick a topic" list and the 🎲 Random button)
+const TOPICS = [
+  "Introduce yourself in 60 seconds",
+  "Pitch your favourite app as if you built it",
+  "Explain your project to a 10-year-old",
+  "Open an event and welcome the audience",
+  "Thank a sponsor on stage",
+  "Convince the judges your idea matters",
+  "Tell a story about a time you failed",
+  "Describe a problem you want to solve",
+  "Teach us one thing you know well",
+  "Give a toast at a friend's celebration",
+  "Persuade us to try your favourite hobby",
+  "Announce a schedule change to the crowd",
+];
 const COLORS = { amber: "#f5b13d", rose: "#f2566b", sky: "#4f9dff", pink: "#e98ee6", violet: "#a78bfa" };
 const TYPE_COLOR = {
   pace_fast: "amber", pace_slow: "amber", filler: "rose", long_pause: "rose", visual: "sky", low_energy: "sky",
@@ -272,6 +287,10 @@ async function analyzeView() {
 
   const dz = $("#dropzone");
   let countdown = 3; /*倒数3秒*/
+  // 讲什么题目：free = Freestyle、pick = 从清单选、dice = 随机、own = 自己打
+  // 每种模式各自记住自己的值，切来切去不会弄丢
+  let topicMode = "free", pickTopic = TOPICS[0], diceTopic = "", ownText = "";
+  const currentTopic = () => ({ pick: pickTopic, dice: diceTopic, own: ownText.trim() }[topicMode] || "");
   let previewStream = null; // 预览时打开的摄像头画面
   const stopPreview = () => { if (previewStream) { previewStream.getTracks().forEach((t) => t.stop()); previewStream = null; } };
   const drawEmpty = () => {
@@ -295,14 +314,25 @@ async function analyzeView() {
     dz.innerHTML = `<div class="rec-setup">
       <div class="rec-preview">
         <video id="preview" autoplay muted playsinline></video>
+        <div class="rec-topic-cap" id="topic-cap" hidden></div>
         <span class="rec-hint" id="rec-hint">Starting camera…</span>
         <div class="rec-count" id="rec-count" hidden></div>
       </div>
       <div class="rec-controls">
       <h2><span class="rec-dot"></span> Get ready to record </h2>
-        <p class="dz-sub">Choose a countdown duration before recording:</p>
-        <div class="chips">
-          ${[3, 5, 10].map((s) => `<button class="chip ${s === countdown ? "active" : ""}" data-cd="${s}">${s}s</button>`).join("")}
+        <div class="rec-group">
+          <p class="dz-sub">What will you talk about?</p>
+          <div class="chips">
+            ${[["free", "Freestyle"], ["pick", "Pick a topic"], ["dice", "🎲 Random"], ["own", "My own"]]
+              .map(([k, label]) => `<button class="chip ${k === topicMode ? "active" : ""}" data-tm="${k}">${label}</button>`).join("")}
+          </div>
+          <div class="topic-area" id="topic-area"></div>
+        </div>
+        <div class="rec-group">
+          <p class="dz-sub">Choose a countdown duration before recording:</p>
+          <div class="chips">
+            ${[3, 5, 10].map((s) => `<button class="chip ${s === countdown ? "active" : ""}" data-cd="${s}">${s}s</button>`).join("")}
+          </div>
         </div>
         <div class="dz-actions">
           <button class="btn" id="cd-back">Back</button>
@@ -315,8 +345,24 @@ async function analyzeView() {
       countdown = +b.dataset.cd;
       $$("[data-cd]", dz).forEach((x) => x.classList.toggle("active", x === b));
     }));
+    // 选题目模式：同样只换高亮 + 重画题目那一小块，摄像头不受影响
+    $$("[data-tm]", dz).forEach((b) => (b.onclick = () => {
+      topicMode = b.dataset.tm;
+      $$("[data-tm]", dz).forEach((x) => x.classList.toggle("active", x === b));
+      if (topicMode === "dice" && !diceTopic) rollTopic();
+      drawTopicArea();
+      if (topicMode === "own") $("#topic-input").focus();
+    }));
+    drawTopicArea();
     $("#cd-back").onclick = () => { stopPreview(); drawEmpty(); };
-    $("#cd-start").onclick = () => runCountdown();
+    $("#cd-start").onclick = () => {
+      if (topicMode === "own" && !currentTopic()) { // 选了 My own 却没打字：提醒一下，不要直接开录
+        toast("Type your topic, or choose Freestyle");
+        $("#topic-input").focus();
+        return;
+      }
+      runCountdown();
+    };
     // 打开摄像头，把实时画面放进预览框
     try { previewStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: true }); }
     catch { toast("Camera / microphone is blocked. Allow it in the address bar, then try again."); drawEmpty(); return; }
@@ -328,6 +374,40 @@ async function analyzeView() {
     $("#rec-hint").textContent = "Camera preview · not recording yet";
     $("#cd-start").disabled = false;
     $("#cd-start").textContent = "Record now";
+  }
+
+  // 题目那一小块：依照模式显示 说明 / 下拉清单 / 随机卡片 / 输入框
+  function drawTopicArea() {
+    const area = $("#topic-area");
+    if (topicMode === "free") area.innerHTML = `<p class="topic-hint">Talk about anything you like.</p>`;
+    if (topicMode === "pick") {
+      area.innerHTML = `<select class="topic-field" id="topic-select" aria-label="Topic">
+        ${TOPICS.map((t) => `<option ${t === pickTopic ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
+      $("#topic-select").onchange = (e) => { pickTopic = e.target.value; showTopicCaption(); };
+    }
+    if (topicMode === "dice") {
+      area.innerHTML = `<div class="topic-card"><span>${esc(diceTopic)}</span>
+        <button class="btn btn-ghost" id="reroll" type="button">🎲 Roll again</button></div>`;
+      $("#reroll").onclick = () => { rollTopic(); drawTopicArea(); };
+    }
+    if (topicMode === "own") {
+      area.innerHTML = `<input class="topic-field" id="topic-input" maxlength="120" value="${esc(ownText)}"
+        placeholder="e.g. Why our club needs new members" aria-label="Your topic">`;
+      $("#topic-input").oninput = (e) => { ownText = e.target.value; showTopicCaption(); };
+    }
+    showTopicCaption();
+  }
+  // 随机抽一题，而且不会跟现在这题一样
+  function rollTopic() {
+    const others = TOPICS.filter((t) => t !== diceTopic);
+    diceTopic = others[Math.floor(Math.random() * others.length)];
+  }
+  // 预览画面上方的提词卡：有题目才显示
+  function showTopicCaption() {
+    const cap = $("#topic-cap");
+    if (!cap) return;
+    cap.textContent = currentTopic();
+    cap.hidden = !currentTopic();
   }
 
   // 在预览画面上数 3…2…1，数完用已经开着的摄像头开始录
@@ -481,6 +561,7 @@ async function analyzeView() {
     const chunks = [];
     const t0 = Date.now();
     dz.innerHTML = `<div class="rec-live"><video autoplay muted playsinline></video>
+      ${currentTopic() ? `<p class="rec-topic">Topic · ${esc(currentTopic())}</p>` : ""}
       <div class="rec-timer"><span class="rec-dot live" style="display:inline-block;margin-right:6px"></span><span id="rec-t">0:00</span> / 10:00</div>
       <button class="btn btn-primary" id="stop-btn">Stop recording</button></div>`;
     $("video", dz).srcObject = stream;
@@ -498,7 +579,11 @@ async function analyzeView() {
       // 重录时直接取名 "上一次的名字 (retake)"，Sessions 列表里一眼认得出是同一份练习
       const prev = state.retakeOf;
       const base = prev ? prev.name.replace(/\.[^.]+$/, "").replace(/ \(retake\)$/, "") : "";
-      const fname = prev ? `${base} (retake).webm` : `recording_${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.webm`;
+      // 文件名优先顺序：重录 → "上一次 (retake)"；有题目 → 用题目当名字；都没有 → recording_日期时间
+      const topicName = currentTopic().replace(/[\\/:*?"<>|]/g, "").trim().slice(0, 60);
+      const fname = prev ? `${base} (retake).webm`
+        : topicName ? `${topicName}.webm`
+        : `recording_${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.webm`;
       const file = new File(chunks, fname, { type: "video/webm" });
       choose(file, null, { previous: prev, recorded: true });
       toast(prev ? "Retake ready. Press Analyze to compare it with your last take." : "Recording ready. Press Analyze.");
