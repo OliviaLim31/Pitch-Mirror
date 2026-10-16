@@ -79,7 +79,7 @@ python -m uvicorn server:app --reload
 ```
 Open http://localhost:8000:
 1. Under the upload box, click a sample such as `bad_1.mp4` (or **Browse files** / **Record now**).
-2. Pick a **Rubric preset** and click **Analyze your pitch →**. The first run downloads the Whisper speech model (about 150 MB, one time only).
+2. Click **Analyze your pitch →** next to the file. The first run downloads the Whisper speech model (about 150 MB, one time only).
 
 Want to compare against a baseline recording of the same text? The Streamlit dashboard does that: `streamlit run app.py` → http://localhost:8501, then **Recording source → From data/ folder**, **Speech:** `bad_1.mp4`, **Baseline:** `good_1.mp4`, **✨ Analyze**.
 

@@ -28,12 +28,6 @@ for d in (UPLOADS, SESSIONS, RESPEAK):
     d.mkdir(exist_ok=True)
 
 AUDIO_EXT = {".wav", ".mp3", ".m4a", ".ogg", ".flac", ".webm"}
-DEFAULT_RUBRICS = [
-    {"id": "hackathon", "name": "Hackathon pitch", "minutes": 3, "focus": ["hook", "problem", "demo", "ask"]},
-    {"id": "investor", "name": "Investor demo", "minutes": 5, "focus": ["problem", "market", "traction", "ask"]},
-    {"id": "class", "name": "Class presentation", "minutes": 10, "focus": ["intro", "body", "summary"]},
-    {"id": "event", "name": "Event hosting", "minutes": 5, "focus": ["welcome", "agenda", "energy"]},
-]
 
 app = FastAPI(title="Pitch Mirror")
 JOBS = {}  # job_id -> live progress dict (kept in memory only)
@@ -55,16 +49,6 @@ def load_session(sid):
 
 def save_session(s):
     _session_path(s["id"]).write_text(json.dumps(s))
-
-
-def load_rubrics():
-    f = ROOT / "rubrics.json"
-    if f.exists():
-        try:
-            return json.loads(f.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as e:
-            print(f"[rubrics.json] invalid JSON, using defaults: {e}")
-    return DEFAULT_RUBRICS
 
 
 def is_filler(word):
@@ -157,7 +141,7 @@ def public_session(s, full=True):
     ai = r.get("ai") if r.get("ai") and not r["ai"].get("error") else None
     prev = s.get("previous")
     summary = {
-        "id": s["id"], "name": s["name"], "speaker": s.get("speaker", "Olivia"), "rubric": s["rubric"],
+        "id": s["id"], "name": s["name"], "speaker": s.get("speaker", "Olivia"),
         "created": s["created"], "file": r["file"], "duration": r["global"]["duration"],
         "overall": r["scores"]["overall"], "n_flaws": len(s["display_flaws"]), "is_video": r["is_video"],
         "previous": prev if session_exists(prev) else None,  # the take this one re-recorded (gone if it was deleted)
@@ -176,16 +160,11 @@ def public_session(s, full=True):
 # ───────────────────────── 🎓 Checkpoint 2: your first API endpoint ─────────────────────────
 # 🎓 TODO (Olivia): write a GET endpoint at "/api/health" that returns
 #    {"ok": True, "gemini": gemini_mode(), "model": GEMINI_MODEL}
-#    Hint: look at how @app.get("/api/rubrics") is written just below, and copy its shape.
+#    Hint: look at how @app.get("/api/samples") is written just below, and copy its shape.
 #    The green dot next to the workspace name in the top bar lights up once this works.
 
 
 # ───────────────────────── API ─────────────────────────
-@app.get("/api/rubrics")
-def get_rubrics():
-    return load_rubrics()
-
-
 @app.get("/api/samples")
 def samples():
     exts = media.VIDEO_EXT | AUDIO_EXT
@@ -208,13 +187,12 @@ async def upload(file: UploadFile = File(...)):
 class AnalyzeReq(BaseModel):
     upload: str | None = None
     sample: str | None = None
-    rubric: str = "hackathon"
     speaker: str = "Olivia"
     name: str | None = None  # the name you gave the file: shown in Sessions/Results, never used as a path
     previous: str | None = None  # id of the session this take re-records (from the Re-record button)
 
 
-def _run_job(job_id, path, rubric, speaker, display_name, previous=None):
+def _run_job(job_id, path, speaker, display_name, previous=None):
     job = JOBS[job_id]
 
     def prog(msg, frac):
@@ -223,7 +201,7 @@ def _run_job(job_id, path, rubric, speaker, display_name, previous=None):
     try:
         res = P.analyze(path, baseline=None, transcript_text=None, use_ai=gemini_mode() != "off", progress=prog)
         sid = uuid.uuid4().hex[:10]
-        s = {"id": sid, "name": display_name, "speaker": speaker, "rubric": rubric, "created": time.time(),
+        s = {"id": sid, "name": display_name, "speaker": speaker, "created": time.time(),
              "path": str(path), "result": res, "display_flaws": group_flaws(res["flaws"]), "fixed": [],
              "previous": previous}
         save_session(s)
@@ -242,15 +220,14 @@ def analyze(req: AnalyzeReq):
         raise HTTPException(400, "Give an upload or a sample")
     if not path.exists():
         raise HTTPException(404, "File not found")
-    rub = next((r for r in load_rubrics() if r["id"] == req.rubric), load_rubrics()[0])
     # display name: your own name if you gave one (control characters removed, max 80), else the file on disk
     display = re.sub(r"[\x00-\x1f]", "", req.name or "").strip()[:80] or path.name
     previous = req.previous if session_exists(req.previous) else None  # ignore ids that don't exist
     job_id = uuid.uuid4().hex[:10]
     JOBS[job_id] = {"status": "running", "progress": 0.0, "stage": "Queued", "file": path.name, "name": display,
-                    "rubric": rub, "started": time.time(), "is_video": media.is_video(path),
+                    "started": time.time(), "is_video": media.is_video(path),
                     "gemini": gemini_mode(), "speaker": req.speaker}
-    threading.Thread(target=_run_job, args=(job_id, path, rub, req.speaker, display, previous), daemon=True).start()
+    threading.Thread(target=_run_job, args=(job_id, path, req.speaker, display, previous), daemon=True).start()
     return {"job": job_id}
 
 

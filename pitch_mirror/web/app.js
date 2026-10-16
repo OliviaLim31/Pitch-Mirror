@@ -98,8 +98,6 @@ function download(name, blob) {
 
 // ───────── app state (lives as long as the tab is open) ─────────
 const state = {
-  rubrics: [],
-  rubricId: localStorage.getItem("pm.rubric") || "hackathon",
   file: null,          // a File chosen / recorded, waiting to be analysed
   sample: null,        // or the name of a sample in data/
   localUrl: null,      // object URL for the chosen file (used by the Analyzing view)
@@ -111,8 +109,6 @@ const state = {
   cleanup: [],         // functions to run when we leave a view (stop timers, cameras...)
   crumb: "",           // optional text a view shows next to the Back button, e.g. "Flaw 2 of 4"
 };
-const custom = () => JSON.parse(localStorage.getItem("pm.customRubrics") || "[]");
-const allRubrics = () => [...state.rubrics, ...custom()];
 const workspace = () => JSON.parse(localStorage.getItem("pm.workspace") || '{"name":"Example workspace","speaker":"Olivia"}');
 
 // ═══════════════════ 🎓 Checkpoint 4: score-ring maths ═══════════════════
@@ -182,9 +178,9 @@ const barsHTML = (bars, cls = "") => bars.map((v) => `<i class="${cls}" style="h
 // ═══════════════════ router ═══════════════════
 const routes = {
   analyze: analyzeView, analyzing: analyzingView, results: resultsView, flaw: flawView,
-  progress: progressView, sessions: sessionsView, rubrics: rubricsView, evaluation: evaluationView,
+  progress: progressView, sessions: sessionsView, evaluation: evaluationView,
 };
-const NAV_OF = { analyze: "analyze", analyzing: "analyze", results: "sessions", flaw: "sessions", progress: "sessions", sessions: "sessions", rubrics: "rubrics", evaluation: "evaluation" };
+const NAV_OF = { analyze: "analyze", analyzing: "analyze", results: "sessions", flaw: "sessions", progress: "sessions", sessions: "sessions", evaluation: "evaluation" };
 
 function parseHash() {
   const [name, ...args] = (location.hash.replace(/^#\/?/, "") || "analyze").split("/");
@@ -194,7 +190,7 @@ function parseHash() {
 // ───────── Back button: every page returns to the page you came from ─────────
 // `trail` mirrors this tab's in-app history. When you opened a page directly (no trail yet),
 // Back goes to the page's logical parent instead, e.g. a flaw → its results.
-const PAGE_NAME = { analyze: "Analyze", analyzing: "Analysis", results: "Results", flaw: "Flaw", progress: "Progress", sessions: "Sessions", rubrics: "Rubrics", evaluation: "Evaluation" };
+const PAGE_NAME = { analyze: "Analyze", analyzing: "Analysis", results: "Results", flaw: "Flaw", progress: "Progress", sessions: "Sessions", evaluation: "Evaluation" };
 const trail = [];
 let replacing = false;
 function track() {
@@ -265,7 +261,6 @@ async function getSession(sid, fresh = false) {
 // ═══════════════════ 1 · Analyze (upload) ═══════════════════
 async function analyzeView() {
   if (!state.autoRecord) state.retakeOf = null; // 只有从结果页按 Re-record 进来的这一趟才算"重录"
-  if (!state.rubrics.length) state.rubrics = await api("/api/rubrics").catch(() => []);
   const samples = await api("/api/samples").catch(() => []);
   view.innerHTML = `
   <section class="hero">
@@ -274,9 +269,6 @@ async function analyzeView() {
     <p data-anim="3">Upload a rehearsal. Get timestamped, rubric-scored feedback you can reproduce.</p>
     <div class="card upload-card" data-anim="4">
       <div class="dropzone" id="dropzone"></div>
-      <div class="preset-row">
-        <div><p class="eyebrow" style="margin:0">Rubric preset</p><div class="chips" id="chips"></div></div>
-      </div>
     </div>
     <div class="legend" data-anim="5">
       <span><i class="dot" style="background:#a78bfa"></i>Pace, pauses, fillers</span>
@@ -514,26 +506,14 @@ async function analyzeView() {
   dz.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) choose(f, null); });
   $("#file-input").onchange = (e) => { const f = e.target.files[0]; if (f) choose(f, null); e.target.value = ""; };
 
-  // rubric chips
-  const drawChips = () => {
-    $("#chips").innerHTML = allRubrics().map((r) =>
-      `<button class="chip ${r.id === state.rubricId ? "active" : ""}" data-rub="${esc(r.id)}">${esc(r.name)}${r.id === state.rubricId ? ` · ${r.minutes} min` : ""}</button>`).join("")
-      + `<button class="chip" id="custom-chip">+ Custom</button>`;
-    $$("[data-rub]").forEach((b) => (b.onclick = () => { state.rubricId = b.dataset.rub; localStorage.setItem("pm.rubric", state.rubricId); drawChips(); }));
-    $("#custom-chip").onclick = () => customRubricDialog(() => drawChips());
-  };
-  drawChips();
-
   // the Analyze button now sits next to the chosen file, so drawChosen() connects it to this each time
   async function runAnalyze() {
     const btn = $("#analyze-btn");
     btn.disabled = true;
     btn.innerHTML = `<span class="spinner"></span>${state.file ? "Uploading…" : "Starting…"}`;
     try {
-      const body = { rubric: state.rubricId, speaker: workspace().speaker, name: state.file ? state.file.name : state.sample,
+      const body = { speaker: workspace().speaker, name: state.file ? state.file.name : state.sample,
                      previous: state.previous ? state.previous.id : null };
-      const cr = custom().find((r) => r.id === state.rubricId);
-      if (cr) body.custom = cr;
       if (state.file) {
         const fd = new FormData();
         fd.append("file", state.file, state.file.name);
@@ -594,31 +574,6 @@ async function analyzeView() {
   if (state.autoRecord) { state.autoRecord = false; drawRecordSetup(); }
 }
 
-function customRubricDialog(done) {
-  const d = document.createElement("dialog");
-  d.innerHTML = `<form method="dialog" class="stack">
-    <p class="card-title">New rubric preset</p>
-    <label class="field">Name<input name="name" required placeholder="e.g. Demo day pitch" maxlength="40"></label>
-    <label class="field">Time limit (minutes)<input name="minutes" type="number" min="1" max="30" value="3" required></label>
-    <label class="field">Focus areas (comma separated)<input name="focus" placeholder="hook, problem, demo, ask"></label>
-    <div class="actions" style="justify-content:flex-end"><button class="btn" value="cancel" formnovalidate>Cancel</button><button class="btn btn-primary" value="ok">Save preset</button></div>
-  </form>`;
-  document.body.append(d);
-  d.showModal();
-  d.addEventListener("close", () => {
-    if (d.returnValue === "ok") {
-      const f = new FormData($("form", d));
-      const r = { id: "custom-" + Date.now().toString(36), name: f.get("name").trim(), minutes: +f.get("minutes"), focus: String(f.get("focus") || "").split(",").map((s) => s.trim()).filter(Boolean), custom: true };
-      localStorage.setItem("pm.customRubrics", JSON.stringify([...custom(), r]));
-      state.rubricId = r.id;
-      localStorage.setItem("pm.rubric", r.id);
-      toast(`Preset “${r.name}” saved`);
-      done?.();
-    }
-    d.remove();
-  });
-}
-
 // ═══════════════════ 2 · Analyzing ═══════════════════
 async function analyzingView(jobId) {
   let job = await api(`/api/jobs/${jobId}`);
@@ -632,7 +587,7 @@ async function analyzingView(jobId) {
   <div class="grid-3">
     ${lane("speech", "#a78bfa", "Speech", "Transcribing with word-level timestamps", "", 2)}
     ${lane("visual", "#4f9dff", "Visual", job.is_video ? "Sampling 2 fps · gaze &amp; gesture" : "Audio-only file · no frames", "sky", 3)}
-    ${lane("content", "#e98ee6", "Content", "Scoring structure against rubric", "pink", 4)}
+    ${lane("content", "#e98ee6", "Content", "Hook, structure &amp; clarity notes", "pink", 4)}
   </div>
   <div class="card live-tl" data-anim="5"><span class="label">LIVE TIMELINE</span>
     <div class="mini-wave" id="mini"><div class="playhead" id="ph" style="left:0"></div></div>
@@ -674,10 +629,8 @@ async function analyzingView(jobId) {
     vb.innerHTML = `<div class="frames">${[0, 1, 2, 3].map((i) => `<div class="frame" id="fr${i}"></div>`).join("")}</div>`;
     if (job.is_video) grabFrames(url, 4).then((imgs) => imgs.forEach((src, i) => { const f = $(`#fr${i}`); if (f && src) f.innerHTML = `<img alt="" src="${src}">`; }));
 
-    // content lane: rubric focus + what we are waiting for
-    const rub = job.rubric || {};
-    $("#content-body").innerHTML = `<div class="quote" id="quote"><div class="skeleton" style="width:90%"></div><div class="skeleton" style="width:75%"></div><div class="skeleton" style="width:55%"></div>
-       <p style="margin-top:14px">${(rub.focus || []).map((f) => `<span class="tag pink" style="margin-right:6px">${esc(f)}</span>`).join("")}</p></div>`;
+    // content lane: placeholder lines while we wait (the notes themselves come from Gemini)
+    $("#content-body").innerHTML = `<div class="quote" id="quote"><div class="skeleton" style="width:90%"></div><div class="skeleton" style="width:75%"></div><div class="skeleton" style="width:55%"></div></div>`;
 
     let frameTick = 0;
     const update = (j) => {
@@ -693,7 +646,7 @@ async function analyzingView(jobId) {
       });
       $("#speech-m").innerHTML = `stage ${esc(j.stage)}<br>elapsed ${j.elapsed.toFixed(1)}s<br>model whisper · word timestamps`;
       $("#visual-m").innerHTML = j.is_video ? `frames ${Math.round(visual * 4)} / 4 preview<br>gaze ${j.gemini === "off" ? "needs Gemini key" : "via Gemini " + j.gemini}<br>sampling ~1 fps for scoring` : "no video track<br>visual score skipped<br>&nbsp;";
-      $("#content-m").innerHTML = `${(rub.focus || []).join(" · ") || "rubric"}<br>gemini ${j.gemini}<br>rubric: ${esc(rub.name || "")}`;
+      $("#content-m").innerHTML = `gemini ${j.gemini}<br>${j.gemini === "off" ? "content notes need a Gemini key" : "content notes on"}<br>&nbsp;`;
       // animate the frame highlight + timeline playhead
       frameTick = (frameTick + 1) % 4;
       $$(".frame").forEach((f, i) => f.classList.toggle("on", job.is_video && i === frameTick));
@@ -776,7 +729,7 @@ async function resultsView(sid) {
   const short = { "Fluency (fillers)": "Fillers", "Vocal variety (pitch)": "Vocal variety", "Energy / projection": "Energy", "Content (AI)": "Content · AI", "Visual (AI)": "Eye contact · AI" };
   view.innerHTML = `
   <div class="page-head" data-anim>
-    <div><p class="eyebrow">${esc((s.name || s.file).replace(/\.[^.]+$/, ""))} · ${esc(s.rubric.name)} rubric</p><h1 class="h1">${esc(s.speaker)}'s pitch · Results</h1></div>
+    <div><p class="eyebrow">${esc((s.name || s.file).replace(/\.[^.]+$/, ""))}</p><h1 class="h1">${esc(s.speaker)}'s pitch · Results</h1></div>
     <div class="actions"><button class="btn" id="export-btn">Export</button>
       ${s.previous
         ? `<button class="btn" id="rerecord-btn">Re-record</button><button class="btn btn-primary" id="compare-prev-btn">Compare with previous take →</button>`
@@ -856,7 +809,6 @@ async function resultsView(sid) {
   $("#rerecord-btn").onclick = () => {
     state.autoRecord = true;
     state.retakeOf = { id: sid, name: s.name || s.file }; // 记住"现在是在重录哪一次"
-    state.rubricId = s.rubric.id || state.rubricId;
     go("#/analyze");
   };
   if (s.previous) $("#compare-prev-btn").onclick = () => go(`#/progress/${s.previous}/${sid}`); // 旧的在前（Before），新的在后（After）
@@ -1069,7 +1021,7 @@ async function progressView(a, b) {
         <span class="ok">${!c.repro.available ? "NOT RUN" : c.repro.sigma <= 0.5 ? "VERIFIED" : "UNSTABLE"}</span></article>
     </div>
     <article class="card" data-anim="2" style="align-self:start">
-      <div class="lane-head"><p class="card-title">Metric breakdown</p><span class="chip" style="cursor:default">${esc(c.b.rubric.name)} · ${c.b.rubric.minutes} min</span></div>
+      <div class="lane-head"><p class="card-title">Metric breakdown</p></div>
       <table class="mtable"><tbody>${c.rows.map((r) => `<tr><td>${esc(r.name)}</td><td class="num a">${r.a}</td><td class="arrow">→</td><td class="num">${r.b}</td><td style="text-align:right">${delta(r)}</td></tr>`).join("")}</tbody></table>
       <div class="actions" style="margin-top:21px"><button class="btn btn-primary" id="share-btn">Share progress card</button><button class="btn" id="tl-btn">Compare timelines</button></div>
     </article>
@@ -1133,11 +1085,11 @@ function compareTimelines(c) {
 
 // ═══════════════════ Sessions ═══════════════════
 function sessionRows(list, selectable) {
-  return `<div class="list-row head"><span>Session</span><span>Rubric</span><span>Length</span><span>Score</span><span></span></div>
+  return `<div class="list-row head"><span>Session</span><span>Length</span><span>Score</span><span></span></div>
   ${list.map((s) => `<div class="list-row" data-sid="${s.id}">
     <span style="display:flex;align-items:center;gap:12px">${selectable ? `<input type="checkbox" data-pick="${s.id}" aria-label="Select ${esc(s.name || s.file)}">` : ""}
       <span><b style="font-weight:500">${esc(s.name || s.file)}</b><br><span class="card-sub" style="margin:0">${new Date(s.created * 1000).toLocaleString()} · ${s.n_flaws} flaws</span></span></span>
-    <span class="card-sub" style="margin:0">${esc(s.rubric.name)}</span><span class="mono">${fmt(s.duration)}</span>
+    <span class="mono">${fmt(s.duration)}</span>
     <span class="mono" style="color:var(--violet-2)">${Math.round(s.overall)}</span>
     <span style="text-align:right"><button class="btn btn-ghost btn-icon" data-del="${s.id}" aria-label="Delete session">${ICON.trash}</button></span></div>`).join("")}`;
 }
@@ -1190,35 +1142,19 @@ async function sessionsView() {
   wireSessionRows(list);
 }
 
-// ═══════════════════ Rubrics ═══════════════════
-async function rubricsView() {
-  state.rubrics = await api("/api/rubrics").catch(() => []);
-  const draw = () => {
-    view.innerHTML = `<div class="page-head" data-anim><div><p class="eyebrow">Scoring</p><h1 class="h1">Rubrics</h1></div>
-      <div class="actions"><button class="btn btn-primary" id="new-rub">+ New preset</button></div></div>
-      <div class="grid-3">${allRubrics().map((r, i) => `<article class="card ${r.id === state.rubricId ? "glow" : ""}" data-anim="${Math.min(5, i + 2)}">
-        <div class="lane-head"><p class="card-title">${esc(r.name)}</p><span class="lane-pct">${r.minutes} min</span></div>
-        <p class="card-sub">${r.custom ? "Custom preset · saved in this browser" : "Preset · from rubrics.json"}</p>
-        <p style="margin:14px 0">${(r.focus || []).map((f) => `<span class="tag pink" style="margin:0 6px 6px 0">${esc(f)}</span>`).join("")}</p>
-        <div class="actions"><button class="btn" data-use="${esc(r.id)}">${r.id === state.rubricId ? "✓ In use" : "Use preset"}</button>
-        ${r.custom ? `<button class="btn btn-ghost btn-icon" data-rm="${esc(r.id)}" aria-label="Delete preset">${ICON.trash}</button>` : ""}</div></article>`).join("")}</div>
-      <article class="card" data-anim="5" style="margin-top:13px"><p class="card-title">How scores are computed</p>
-        <p class="card-sub" style="line-height:1.7">The overall score is a fixed weighted mix of six acoustic dimensions — Pace 20%, Fillers 20%, Pausing 15%, Vocal variety 20%, Energy 10%, Clarity 15% — computed with pure maths, so the same file always gets the same score. Gemini content and eye-contact scores are shown next to it but never mixed in.</p></article>`;
-    $("#new-rub").onclick = () => customRubricDialog(draw);
-    $$("[data-use]").forEach((b) => (b.onclick = () => { state.rubricId = b.dataset.use; localStorage.setItem("pm.rubric", state.rubricId); toast("Preset selected"); draw(); animateIn(); }));
-    $$("[data-rm]").forEach((b) => (b.onclick = () => { localStorage.setItem("pm.customRubrics", JSON.stringify(custom().filter((r) => r.id !== b.dataset.rm))); draw(); }));
-  };
-  draw();
-}
-
 // ═══════════════════ Evaluation ═══════════════════
+// how the score is made (moved here from the old Rubrics page; shown with or without eval results)
+const SCORING_CARD = `<article class="card" data-anim="5" style="margin-top:13px"><p class="card-title">How scores are computed</p>
+  <p class="card-sub" style="line-height:1.7">The overall score is a fixed weighted mix of six acoustic dimensions — Pace 20%, Fillers 20%, Pausing 15%, Vocal variety 20%, Energy 10%, Clarity 15% — computed with pure maths, so the same file always gets the same score. Gemini content and eye-contact scores are shown next to it but never mixed in.</p></article>`;
+
 async function evaluationView() {
   const e = await api("/api/evaluation");
   if (!e.available) {
     view.innerHTML = `<div class="page-head" data-anim><div><p class="eyebrow">Proof it works</p><h1 class="h1">Evaluation</h1></div></div>
       <div class="card empty" data-anim="2"><p class="card-title" style="justify-content:center">No evaluation results yet</p>
       <p class="card-sub">In a terminal inside the <code>pitch_mirror</code> folder run:</p><p class="mono" style="color:var(--violet-3)">py -3.12 eval.py</p>
-      <p class="card-sub">It scores every good_* and bad_* recording several times and checks the score separates them and never changes between runs.</p></div>`;
+      <p class="card-sub">It scores every good_* and bad_* recording several times and checks the score separates them and never changes between runs.</p></div>
+      ${SCORING_CARD}`;
     return;
   }
   const s = e.summary;
@@ -1232,7 +1168,8 @@ async function evaluationView() {
     ${e.has_plot ? `<article class="card" data-anim="3" style="margin-top:13px"><p class="card-title">Score separation</p><img src="/api/evaluation/plot" alt="Score separation between good and bad recordings" style="width:100%;border-radius:10px;margin-top:13px"></article>` : ""}
     ${e.rows ? `<article class="card" data-anim="4" style="margin-top:13px;overflow:auto"><table class="mtable"><tbody>
       <tr>${Object.keys(e.rows[0]).map((k) => `<td class="eyebrow">${esc(k)}</td>`).join("")}</tr>
-      ${e.rows.map((r) => `<tr>${Object.values(r).map((v) => `<td class="mono" style="font-size:12px">${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></article>` : ""}`;
+      ${e.rows.map((r) => `<tr>${Object.values(r).map((v) => `<td class="mono" style="font-size:12px">${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></article>` : ""}
+    ${SCORING_CARD}`;
 }
 
 // ═══════════════════ workspace + boot ═══════════════════
