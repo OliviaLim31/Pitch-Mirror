@@ -91,6 +91,7 @@ const state = {
   autoRecord: false,
   retakeOf: null,      // {id, name} of the session you pressed Re-record on (set only during that visit)
   previous: null,      // the session the chosen file is a retake of, so its results can be compared
+  recorded: false,     // true when the chosen file was recorded here (then the button says Re-record)
   sessions: new Map(), // cache of loaded sessions
   cleanup: [],         // functions to run when we leave a view (stop timers, cameras...)
   crumb: "",           // optional text a view shows next to the Back button, e.g. "Flaw 2 of 4"
@@ -260,7 +261,6 @@ async function analyzeView() {
       <div class="dropzone" id="dropzone"></div>
       <div class="preset-row">
         <div><p class="eyebrow" style="margin:0">Rubric preset</p><div class="chips" id="chips"></div></div>
-        <button class="btn btn-primary btn-lg" id="analyze-btn" disabled>Analyze your pitch →</button>
       </div>
     </div>
     <div class="legend" data-anim="5">
@@ -354,8 +354,13 @@ async function analyzeView() {
         <div class="dz-name" id="dz-name"><p class="dz-title">${esc(name)}</p>${state.file ? `<button class="rename-btn" id="rename-btn" type="button" title="Rename" aria-label="Rename file">${ICON.pencil}</button>` : ""}</div>
         <p class="dz-sub" style="margin-bottom:12px">${state.file ? (state.file.size / 1048576).toFixed(1) + " MB · ready" : "sample recording · ready"}${state.previous ? ` · retake of “${esc(state.previous.name)}”` : ""}</p>
         ${url && state.file.type.startsWith("audio") ? `<audio class="dz-media" src="${url}" controls preload="metadata"></audio>` : ""}
-        <button class="btn" id="change-btn">Choose another</button></div></div>`;
-    $("#change-btn").onclick = () => { choose(null, null); };
+        <div class="dz-file-actions">
+          ${state.recorded ? `<button class="btn" id="retake-btn">Re-record</button>` : `<button class="btn" id="change-btn">Choose another</button>`}
+          <button class="btn btn-primary" id="analyze-btn">Analyze your pitch →</button>
+        </div></div></div>`;
+    if (state.recorded) $("#retake-btn").onclick = confirmRetake;
+    else $("#change-btn").onclick = () => { choose(null, null); };
+    $("#analyze-btn").onclick = runAnalyze;
     if (state.file) $("#rename-btn").onclick = startRename; // 示例文件不能改名，只有你自己上传或录的才可以
     // 让回放的进度条知道影片多长；影片停在第 0.1 秒，缩图才不是一片黑
     const m = $(".dz-media", dz);
@@ -391,7 +396,23 @@ async function analyzeView() {
     input.onblur = () => finish(true);
   }
   // previous = the session this file is a retake of (only the Re-record flow passes it; anything else clears it)
-  function choose(file, sample, previous = null) {
+  // 录好的这段不满意：先问清楚，确定了才丢掉它、回到选倒数秒数的画面
+  async function confirmRetake() {
+    const m = $(".dz-media", dz);
+    if (m) m.pause();
+    const ok = await confirmDialog({
+      title: "Are you sure you want to re-record?",
+      message: "This recording will be discarded and you'll go back to the countdown screen.",
+      ok: "Yes, re-record", danger: true,
+    });
+    if (!ok) return; // No / Esc / 点框外：留在原地，录好的那段还在
+    if (state.localUrl) URL.revokeObjectURL(state.localUrl);
+    state.file = null; state.localUrl = null; state.previous = null; state.recorded = false;
+    drawRecordSetup(); // state.retakeOf 还在，所以如果这是"重录"，新录的那段照样会和上一次连起来
+  }
+
+  // options: previous = the session this is a retake of; recorded = it was recorded here, not uploaded
+  function choose(file, sample, { previous = null, recorded = false } = {}) {
     // 拖进来的文件不经过选择窗口的过滤，所以在这里先检查类型，不要等上传完才被服务器拒绝
     if (file && !OK_EXT.some((ext) => file.name.toLowerCase().endsWith(ext))) {
       const ext = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".")) : "This file";
@@ -401,13 +422,11 @@ async function analyzeView() {
       return;
     }
     if (state.localUrl) URL.revokeObjectURL(state.localUrl);
-    state.file = file; state.sample = sample; state.previous = file ? previous : null;
+    state.file = file; state.sample = sample; state.previous = file ? previous : null; state.recorded = !!file && recorded;
     state.localUrl = file ? URL.createObjectURL(file) : null;
-    $("#analyze-btn").disabled = !(file || sample);
     (file || sample) ? drawChosen() : drawEmpty();
   }
   state.file || state.sample ? drawChosen() : drawEmpty();
-  $("#analyze-btn").disabled = !(state.file || state.sample);
 
   // drag & drop
   ["dragenter", "dragover"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("drag"); }));
@@ -425,7 +444,8 @@ async function analyzeView() {
   };
   drawChips();
 
-  $("#analyze-btn").onclick = async () => {
+  // the Analyze button now sits next to the chosen file, so drawChosen() connects it to this each time
+  async function runAnalyze() {
     const btn = $("#analyze-btn");
     btn.disabled = true;
     btn.innerHTML = `<span class="spinner"></span>${state.file ? "Uploading…" : "Starting…"}`;
@@ -446,7 +466,7 @@ async function analyzeView() {
       btn.disabled = false;
       btn.textContent = "Analyze your pitch →";
     }
-  };
+  }
 
   // camera recording. `existing` = the camera already opened by the preview (so we don't ask twice)
   async function startRecording(existing) {
@@ -480,7 +500,7 @@ async function analyzeView() {
       const base = prev ? prev.name.replace(/\.[^.]+$/, "").replace(/ \(retake\)$/, "") : "";
       const fname = prev ? `${base} (retake).webm` : `recording_${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.webm`;
       const file = new File(chunks, fname, { type: "video/webm" });
-      choose(file, null, prev);
+      choose(file, null, { previous: prev, recorded: true });
       toast(prev ? "Retake ready. Press Analyze to compare it with your last take." : "Recording ready. Press Analyze.");
     };
     rec.start(500);

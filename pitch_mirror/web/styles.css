@@ -209,6 +209,7 @@ main:focus-visible { outline: none; } /* main is focused after each page change 
 .dz-title { font-weight: 600; font-size: 15.5px; margin: 0 0 6px; }
 .dz-sub { color: var(--tx-3); font-size: 12px; margin: 0 0 var(--s4); }
 .dz-actions { display: flex; gap: 10px; justify-content: center; }
+.dz-file-actions { display: flex; gap: 10px; flex-wrap: wrap; } /* Re-record / Choose another + Analyze, side by side */
 .rec-dot { width: 9px; height: 9px; border-radius: 50%; background: #d60e0e; }
 .rec-dot.live { background: var(--rose); animation: pulse 1.2s infinite; }
 .dz-file { display: flex; align-items: center; gap: var(--s3); justify-content: center; }
