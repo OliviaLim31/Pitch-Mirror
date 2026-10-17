@@ -819,6 +819,35 @@ async function resultsView(sid) {
   const flaws = s.flaws;
   const dims = { ...s.scores.dimensions, ...s.scores.ai_dimensions };
   const short = { "Fluency (fillers)": "Fillers", "Vocal variety (pitch)": "Vocal variety", "Energy / projection": "Energy", "Content (AI)": "Content · AI", "Visual (AI)": "Eye contact · AI" };
+  // Calculate what the speaker did well (strengths >= 8.5/10)
+  const getStrengths = () => {
+    const list = [];
+    const d = s.scores.dimensions;
+    if (d["Fluency (fillers)"] >= 9.0) {
+      list.push({ title: "Flawless Fluency (10/10)", desc: "Zero filler words ('um', 'uh') detected. Speaks with confident composure." });
+    }
+    if (d["Energy / projection"] >= 8.5) {
+      list.push({ title: "Strong Vocal Energy (10/10)", desc: "Maintains clear volume and projection without trailing off at sentence ends." });
+    }
+    if (d["Vocal variety (pitch)"] >= 8.5) {
+      list.push({ title: "Dynamic Pitch Variety (10/10)", desc: "Natural tonal inflection keeps listeners engaged and avoids sounding robotic." });
+    }
+    if (d["Pausing"] >= 8.5) {
+      list.push({ title: "Clean Cadence & Pausing (10/10)", desc: "Natural breathing intervals with no awkward hesitation gaps." });
+    }
+    if (d["Pace"] >= 8.5) {
+      list.push({ title: "Optimal Speech Tempo", desc: "Pacing remains in the golden audience retention zone (130-165 WPM)." });
+    }
+    if (d["Clarity"] >= 8.5) {
+      list.push({ title: "Crisp Articulation", desc: "Clear consonant pronunciation and strong acoustic intelligibility." });
+    }
+    if (list.length === 0 && s.overall >= 80) {
+      list.push({ title: "Solid Delivery Foundation", desc: "Maintained steady focus and strong overall engagement throughout." });
+    }
+    return list;
+  };
+  const strengths = getStrengths();
+
   view.innerHTML = `
   <div class="page-head" data-anim>
     <div><p class="eyebrow">${esc((s.name || s.file).replace(/\.[^.]+$/, ""))}</p><h1 class="h1">${esc(s.speaker)}'s pitch · Results</h1></div>
@@ -875,22 +904,65 @@ async function resultsView(sid) {
         <div class="attn" id="attn"></div>
       </article>
     </div>
+
     <div class="stack">
       <article class="card score-card" data-anim="2">
         ${ring(s.overall)}
         <div class="score-text"><p class="eyebrow" style="margin:0">Overall</p><h3>${esc(s.headline)}</h3><p class="card-sub" style="margin:0">${flaws.length} timestamped flaw${flaws.length === 1 ? "" : "s"}</p></div>
       </article>
+
       <article class="card" data-anim="3">
         ${Object.entries(dims).map(([k, v]) => `<div class="rubric-row ${k.includes("AI") ? "ai" : ""}"><div class="lbl"><span>${esc(short[k] || k)}</span><span class="mono">${Math.round(v)}/10</span></div><div class="bar"><i data-w="${v * 10}%"></i></div></div>`).join("")}
         ${s.ai_error ? `<p class="card-sub">Gemini error (scores unaffected): ${esc(s.ai_error.slice(0, 90))}</p>` : ""}
       </article>
-      <article class="card" data-anim="4">
-        <p class="card-title">Flaws</p>
-        ${flaws.length ? `<ul class="flaw-list">${flaws.map((f) => `
-          <li class="flaw-item ${s.fixed.includes(f.idx) ? "fixed" : ""}" data-idx="${f.idx}" tabindex="0">
-            <i class="dot" style="background:${flawColor(f)}"></i><span class="mono" style="color:${flawColor(f)}">${fmt(f.start)}</span>
-            <span class="title">${esc(f.label)}</span><span class="chev">${ICON.chev}</span></li>`).join("")}</ul>`
-          : `<p class="card-sub">No flaws found. Clean delivery! 🎉</p>`}
+
+      <!-- 做的好的部分 (Strengths) -->
+      ${strengths.length ? `
+      <article class="card coach-card" data-anim="3.5">
+        <p class="card-title" style="margin-bottom:10px;">
+          <span class="dot" style="background:#4ade80"></span>
+          What You Did Well
+          <span class="card-sub" style="margin:0;font-weight:400">Strengths detected</span>
+        </p>
+        <ul class="strength-list">
+          ${strengths.map(st => `
+            <li class="strength-item">
+              <span class="strength-icon">✓</span>
+              <div>
+                <div class="strength-title">${esc(st.title)}</div>
+                <p class="strength-desc">${esc(st.desc)}</p>
+              </div>
+            </li>
+          `).join("")}
+        </ul>
+      </article>` : ""}
+
+      <!-- 做得不好的地方 & 应该怎么改善 (Actionable Fixes) -->
+      <article class="card coach-card" data-anim="4">
+        <p class="card-title" style="margin-bottom:10px;">
+          <span class="dot" style="background:var(--amber)"></span>
+          Areas to Improve &amp; Fixes
+          <span class="card-sub" style="margin:0;font-weight:400">${flaws.length} action item${flaws.length === 1 ? "" : "s"}</span>
+        </p>
+        ${flaws.length ? `
+          <ul class="fix-list">
+            ${flaws.map(f => `
+              <li class="fix-card" data-idx="${f.idx}">
+                <div class="fix-head">
+                  <span class="fix-tag" style="color:${flawColor(f)}">
+                    <span class="dot" style="background:${flawColor(f)}"></span>
+                    ${fmt(f.start)} · ${esc(f.label)}
+                  </span>
+                  <button class="fix-jump" data-jump-t="${f.start}" type="button">
+                    ${ICON.play} Jump to ${fmt(f.start)}
+                  </button>
+                </div>
+                ${f.why ? `<p class="fix-why"><strong>Why:</strong> ${esc(f.why)}</p>` : ""}
+                ${f.suggestion ? `<div class="fix-how"><strong>How to improve:</strong> ${esc(f.suggestion)}</div>` : ""}
+              </li>
+            `).join("")}
+          </ul>
+        ` : `<p class="card-sub">No flaws found. Clean delivery! 🎉</p>`}
       </article>
     </div>
   </div>`;
@@ -926,10 +998,20 @@ async function resultsView(sid) {
   state.cleanup.push(() => { document.removeEventListener("keydown", key); cancelAnimationFrame(raf); m.pause(); });
 
   drawAttention($("#attn"), s.attention, s.flaws, s.duration, seek);
-  $$(".flaw-item").forEach((li) => {
-    const open = () => go(`#/flaw/${sid}/${li.dataset.idx}`);
-    li.onclick = open;
-    li.onkeydown = (e) => e.key === "Enter" && open();
+  $$("[data-jump-t]").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      seek(Math.max(0, +btn.dataset.jumpT - 0.5));
+      m.play();
+    };
+  });
+  $$(".fix-card").forEach((card) => {
+    const open = () => go(`#/flaw/${sid}/${card.dataset.idx}`);
+    card.onclick = (e) => {
+      if (e.target.closest("[data-jump-t]")) return;
+      open();
+    };
+    card.onkeydown = (e) => e.key === "Enter" && open();
   });
   $("#export-btn").onclick = () => {
     download(`${(s.name || s.file).replace(/[\\/:*?"<>|]/g, "_")}_pitch-mirror-report.json`, new Blob([JSON.stringify(s, null, 2)], { type: "application/json" }));
