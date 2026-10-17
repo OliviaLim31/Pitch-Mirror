@@ -841,6 +841,35 @@ async function resultsView(sid) {
           </div>
         </div>
       </article>
+
+      <article class="card transcript-card" data-anim="2.5">
+        <div class="transcript-head">
+          <p class="card-title">
+            <span class="dot" style="background:var(--violet-2)"></span>
+            Speech Transcript
+            <span class="card-sub" style="margin:0;font-weight:400">Word-level forced alignment</span>
+          </p>
+          <div class="transcript-meta">
+            <span class="badge" style="height:22px; font-size:11px; padding:0 8px;">
+              ${s.words ? s.words.length : 0} words · ${s.global ? Math.round(s.global.wpm) : 0} wpm
+            </span>
+          </div>
+        </div>
+        <div class="transcript-body" id="transcript-body">
+          ${s.words && s.words.length ? `
+            <div class="transcript-text">
+              ${s.words.map((w, i) => {
+                const inFlaw = flaws.some(f => (w.s >= f.start - 0.2 && w.s <= f.end + 0.2));
+                const cls = ['t-word', w.f ? 'filler' : '', inFlaw ? 'in-flaw' : ''].filter(Boolean).join(' ');
+                return `<span class="${cls}" data-s="${w.s}" data-e="${w.e}" data-idx="${i}" title="${fmt(w.s)} · confidence: ${Math.round((w.p || 0.8) * 100)}%">${esc(w.w)}</span>`;
+              }).join(' ')}
+            </div>
+          ` : `
+            <p class="transcript-empty">${s.transcript ? esc(s.transcript) : 'No speech words detected in this recording. Make sure your microphone is working and speak clearly.'}</p>
+          `}
+        </div>
+      </article>
+
       <article class="card" data-anim="3">
         <p class="card-title">Audience attention <span class="card-sub" style="margin:0;font-weight:400">estimated from pace, energy &amp; flaws</span></p>
         <div class="attn" id="attn"></div>
@@ -873,6 +902,11 @@ async function resultsView(sid) {
     $("#fill").style.width = `${(m.currentTime / d) * 100}%`;
     $("#time").textContent = `${fmt(m.currentTime)} / ${fmt(d)}`;
     const ph = $("#attn-ph"); if (ph) ph.setAttribute("x1", (m.currentTime / d) * 1000), ph.setAttribute("x2", (m.currentTime / d) * 1000);
+    const ct = m.currentTime;
+    $$(".t-word", $("#transcript-body")).forEach(el => {
+      const ws = +el.dataset.s, we = +el.dataset.e;
+      el.classList.toggle("active", ct >= ws && ct <= (we + 0.12));
+    });
   };
   let raf;
   const loop = () => { setTime(); raf = requestAnimationFrame(loop); };
@@ -884,6 +918,9 @@ async function resultsView(sid) {
   const seek = (t) => { m.currentTime = clamp(t, 0, m.duration || s.duration); setTime(); };
   $("#track").onclick = (e) => { if (e.target.closest(".marker")) return; const r = e.currentTarget.getBoundingClientRect(); seek(((e.clientX - r.left) / r.width) * (m.duration || s.duration)); };
   $$(".marker").forEach((b) => (b.onclick = () => { seek(Math.max(0, +b.dataset.t - 1)); m.play(); }));
+  $$(".t-word", $("#transcript-body")).forEach((el) => {
+    el.onclick = () => { seek(+el.dataset.s); m.play(); };
+  });
   const key = (e) => { if (e.code === "Space" && !/INPUT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)) { e.preventDefault(); m.paused ? m.play() : m.pause(); } };
   document.addEventListener("keydown", key);
   state.cleanup.push(() => { document.removeEventListener("keydown", key); cancelAnimationFrame(raf); m.pause(); });

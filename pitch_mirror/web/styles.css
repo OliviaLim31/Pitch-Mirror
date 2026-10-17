@@ -284,6 +284,28 @@ main:focus-visible { outline: none; } /* main is focused after each page change 
 .feature-proof-item { display: inline-flex; align-items: center; gap: 8px; }
 .feature-proof-item svg { width: 14px; height: 14px; color: var(--violet-2); flex: none; }
 
+/* ═════════ Interactive Transcript ═════════ */
+.transcript-card { margin-top: var(--s3); text-align: left; }
+.transcript-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+.transcript-meta { display: flex; align-items: center; gap: 8px; }
+.transcript-body {
+  font-size: 14.5px; line-height: 1.8; color: var(--tx-2); background: rgba(0, 0, 0, .25);
+  padding: 12px 16px; border-radius: var(--r); border: 1px solid var(--line); max-height: 160px; overflow-y: auto;
+}
+.transcript-text { display: flex; flex-wrap: wrap; gap: 3px 5px; }
+.t-word {
+  display: inline-block; padding: 1px 4px; border-radius: 4px; cursor: pointer;
+  transition: all .15s var(--ease); color: var(--tx); border-bottom: 1.5px solid transparent;
+}
+.t-word:hover { background: rgba(139, 92, 246, .25); color: #fff; transform: translateY(-1px); }
+.t-word.active {
+  background: rgba(167, 139, 250, .35); color: #fff; font-weight: 600;
+  box-shadow: 0 0 8px rgba(139, 92, 246, .5); border-radius: 4px;
+}
+.t-word.filler { color: var(--rose); text-decoration: underline wavy var(--rose); }
+.t-word.in-flaw { border-bottom-color: var(--amber); }
+.transcript-empty { color: var(--tx-3); font-style: italic; margin: 0; font-size: 13px; }
+
 /* 改文件名：名字旁边的铅笔按钮 + 点了之后出现的输入框 */
 .dz-name { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; }
 .dz-name .dz-title { margin: 0; }
