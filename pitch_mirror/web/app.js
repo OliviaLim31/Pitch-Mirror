@@ -320,12 +320,12 @@ async function analyzeView() {
         `).join("")}
       </div>
 
-      <div class="prompts-footer">
-        <div class="prompts-actions">
-          <button class="btn btn-ghost" id="quick-dice-btn" style="height:32px; font-size:12.5px;">🎲 Surprise me</button>
-          <button class="btn btn-ghost" id="quick-custom-btn" style="height:32px; font-size:12.5px;">✍️ Custom topic</button>
+      <div class="prompts-footer" style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:8px;">
+        <div class="prompts-actions" style="display:flex; justify-content:center; align-items:center; gap:12px;">
+          <button class="btn btn-ghost" id="quick-dice-btn" style="height:34px; font-size:13px; padding:0 16px;">🎲 Surprise me</button>
+          <button class="btn btn-ghost" id="quick-custom-btn" style="height:34px; font-size:13px; padding:0 16px;">✍️ Custom topic</button>
         </div>
-        <span style="font-size:12px; color:var(--tx-3)">Camera warmup &amp; teleprompter included</span>
+        <p class="prompts-hint" style="margin:0; font-size:11.5px; color:var(--tx-3); text-align:center;">Camera warmup &amp; live teleprompter included</p>
       </div>
 
       <!-- Section 2: Upload or direct record -->
