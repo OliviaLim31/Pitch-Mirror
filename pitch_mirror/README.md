@@ -1,14 +1,50 @@
 # 🪞 Pitch Mirror
 
 ## ▶️ Quick start
+
+### 🍏 macOS / Linux
+
+```bash
+# 1. 克隆并进入项目目录
+git clone https://github.com/OliviaLim31/Pitch-Mirror.git
+cd Pitch-Mirror/pitch_mirror
+
+# 2. 创建并激活虚拟环境（首次配置）
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 3. 安装依赖（仅需首次执行）
+pip install -r requirements.txt
+
+# 4. 启动服务（二选一）
+# 方式 A：Web 网页版（推荐）
+uvicorn server:app --reload
+# 方式 B：Streamlit 仪表盘
+# streamlit run app.py
+```
+
+### 🪟 Windows (PowerShell)
+
 ```powershell
+# 1. 克隆并进入项目目录
 git clone https://github.com/OliviaLim31/Pitch-Mirror.git
 cd Pitch-Mirror\pitch_mirror
-py -3.12 -m pip install -r requirements.txt   # first time only
-py -3.12 -m uvicorn server:app --reload
+
+# 2. 创建并激活虚拟环境（首次配置）
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+# 3. 安装依赖（仅需首次执行）
+pip install -r requirements.txt
+
+# 4. 启动服务（二选一）
+uvicorn server:app --reload
+# streamlit run app.py
 ```
-Wait for `Application startup complete.`, then open **http://localhost:8000**.
-The older Streamlit dashboard still works too: `py -3.12 -m streamlit run app.py` → http://localhost:8501.
+
+服务启动后，打开浏览器访问：
+- **Web 应用**：[http://localhost:8000](http://localhost:8000)
+- **Streamlit 仪表盘**：[http://localhost:8501](http://localhost:8501)
 
 **Contrastive speech analytics with temporal flaw grounding.** Built for Multimodal AI Hackathon 2026, Track C.
 
@@ -26,12 +62,11 @@ Upload a speech (video or audio) and, optionally, an "ideal" recording of the sa
 
 Check that it worked:
 - Windows: `py -3.12 --version`
-- Mac: `python3.12 --version`
+- Mac: `python3 --version`
 
-It should print `Python 3.12.x`.
+It should print `Python 3.11.x`, `Python 3.12.x`, `Python 3.13.x` or `Python 3.14.x`.
 
-**Supported Python versions: 3.11, 3.12, 3.13 and 3.14** (64-bit). If you already have one of the others,
-use it and replace `3.12` in every command with your version, e.g. `py -3.14 -m pip install -r requirements.txt`.
+**Supported Python versions: 3.11, 3.12, 3.13 and 3.14** (64-bit).
 On 3.11, pip automatically installs slightly older numpy / scipy / librosa (see `requirements.txt`); the
 smoke test and the web app give identical scores on all four versions.
 Not supported: **3.10 or older** (numpy, scipy and librosa no longer support them) and **3.15** (ctranslate2,
@@ -51,9 +86,9 @@ py -3.12 -m venv .venv
 If you get "running scripts is disabled", run this once, then try the activate line again:
 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
 
-**Mac:**
+**Mac / Linux:**
 ```bash
-python3.12 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 ```
 You should now see `(.venv)` at the start of the terminal line. **Every time you open a new terminal, run the activate line again.**
