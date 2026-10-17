@@ -29,6 +29,12 @@ const TOPICS = [
   "Persuade us to try your favourite hobby",
   "Announce a schedule change to the crowd",
 ];
+const FEATURED_PROMPTS = [
+  { id: "intro", title: "60-Second Elevator Pitch", prompt: "Introduce yourself in 60 seconds", tag: "Quick Warmup", time: "60s", desc: "Hook the room with your name, core superpower, and current mission." },
+  { id: "app", title: "Pitch a Product You Love", prompt: "Pitch your favourite app as if you built it", tag: "Product Pitch", time: "90s", desc: "Identify the critical friction point, the solution, and why it wins." },
+  { id: "eli5", title: "Explain Like I'm 10", prompt: "Explain your project to a 10-year-old", tag: "Clarity & Simplicity", time: "60s", desc: "Drop the technical jargon and make the concept vivid, visual and memorable." },
+  { id: "judges", title: "Convince the Judges", prompt: "Convince the judges your idea matters", tag: "High Impact", time: "120s", desc: "Deliver an energetic hook with market urgency, proof, and grand vision." },
+];
 const COLORS = { amber: "#f5b13d", rose: "#f2566b", sky: "#4f9dff", pink: "#e98ee6", violet: "#a78bfa" };
 const TYPE_COLOR = {
   pace_fast: "amber", pace_slow: "amber", filler: "rose", long_pause: "rose", visual: "sky", low_energy: "sky",
@@ -259,50 +265,123 @@ async function getSession(sid, fresh = false) {
 }
 
 // ═══════════════════ 1 · Analyze (upload) ═══════════════════
+// ═══════════════════ 1 · Analyze (upload / studio) ═══════════════════
 async function analyzeView() {
   if (!state.autoRecord) state.retakeOf = null; // 只有从结果页按 Re-record 进来的这一趟才算"重录"
   const samples = await api("/api/samples").catch(() => []);
   view.innerHTML = `
   <section class="hero">
-    <span class="badge" data-anim>Multimodal · Speech · Visual · Content</span>
-    <h1 data-anim="2">See exactly <em>which second</em><br>your pitch loses the room.</h1>
-    <p data-anim="3">Upload a rehearsal. Get timestamped, rubric-scored feedback you can reproduce.</p>
-    <div class="card upload-card" data-anim="4">
-      <div class="dropzone" id="dropzone"></div>
+    <div data-anim style="margin-bottom: 14px;">
+      <span class="badge"><span class="badge-dot"></span> Acoustic Speech Analytics &amp; Flaw Grounding</span>
     </div>
-    <div class="legend" data-anim="5">
-      <span><i class="dot" style="background:#a78bfa"></i>Pace, pauses, fillers</span>
-      <span><i class="dot" style="background:#4f9dff"></i>Gaze, gesture, posture</span>
-      <span><i class="dot" style="background:#e98ee6"></i>Hook, structure, clarity</span>
+    <h1 data-anim="2">Practice your delivery.<br>See <em>which second</em> loses the room.</h1>
+    <p class="hero-sub" data-anim="3">Pick a scenario below to practice live on camera with instant acoustic feedback, or drop in a rehearsal video to inspect cadence, pauses, and vocal tone.</p>
+
+    <div class="hub-wrapper card" data-anim="4">
+      <div id="dropzone"></div>
+    </div>
+
+    <div class="feature-proof" data-anim="5">
+      <span class="feature-proof-item">${ICON.check} <strong>100% Deterministic</strong> acoustic scoring</span>
+      <span class="feature-proof-item">${ICON.check} <strong>Word-by-word</strong> forced alignment (Whisper)</span>
+      <span class="feature-proof-item">${ICON.check} <strong>Speaker-normalized</strong> pitch &amp; loudness</span>
     </div>
   </section>`;
 
   const dz = $("#dropzone");
   let countdown = 3; /*倒数3秒*/
   // 讲什么题目：free = Freestyle、pick = 从清单选、dice = 随机、own = 自己打
-  // 每种模式各自记住自己的值，切来切去不会弄丢
   let topicMode = "free", pickTopic = TOPICS[0], diceTopic = "", ownText = "";
   const currentTopic = () => ({ pick: pickTopic, dice: diceTopic, own: ownText.trim() }[topicMode] || "");
   let previewStream = null; // 预览时打开的摄像头画面
   const stopPreview = () => { if (previewStream) { previewStream.getTracks().forEach((t) => t.stop()); previewStream = null; } };
+
   const drawEmpty = () => {
     dz.innerHTML = `<div>
-      <div class="dz-icon" id="icon-btn">${ICON.up}</div>
-      <p class="dz-title">Drop your pitch video here</p>
-      <p class="dz-sub">MP4, MOV or WebM · up to 10 min · stays private to your workspace</p>
-      <div class="dz-actions">
-        <button class="btn dz-btn" id="browse-btn">Browse files</button>  <!-- dz stand for dropzone -->
-        <button class="btn dz-btn" id="record-btn"><span class="rec-dot"></span>Record now</button>
+      <!-- Section 1: Choose a Practice Prompt -->
+      <div class="section-label">
+        <h3><span class="dot" style="background:var(--violet-2)"></span> Choose a Practice Prompt</h3>
+        <span class="hint">Not sure what to say? Pick a scenario to start practicing instantly</span>
       </div>
-      ${samples.length ? `<div class="samples">or try a sample: ${samples.filter((s) => !s.endsWith(".txt")).map((s) => `<button data-sample="${esc(s)}">${esc(s)}</button>`).join("")}</div>` : ""}
+
+      <div class="prompts-grid">
+        ${FEATURED_PROMPTS.map((p) => `
+          <div class="prompt-card" data-prompt-id="${p.id}" data-prompt-text="${esc(p.prompt)}">
+            <div>
+              <div class="prompt-head">
+                <span class="prompt-tag">${p.tag}</span>
+                <span class="prompt-time">${p.time}</span>
+              </div>
+              <p class="prompt-title">${p.title}</p>
+              <p class="prompt-desc">“${esc(p.prompt)}”</p>
+            </div>
+            <div class="prompt-action">Start practice ${ICON.chev}</div>
+          </div>
+        `).join("")}
+      </div>
+
+      <div class="prompts-footer">
+        <div class="prompts-actions">
+          <button class="btn btn-ghost" id="quick-dice-btn" style="height:32px; font-size:12.5px;">🎲 Surprise me</button>
+          <button class="btn btn-ghost" id="quick-custom-btn" style="height:32px; font-size:12.5px;">✍️ Custom topic</button>
+        </div>
+        <span style="font-size:12px; color:var(--tx-3)">Camera warmup &amp; teleprompter included</span>
+      </div>
+
+      <!-- Section 2: Upload or direct record -->
+      <div class="section-label" style="margin-top:8px;">
+        <h3><span class="dot" style="background:var(--sky)"></span> Or Analyze an Existing Rehearsal</h3>
+        <span class="hint">MP4, MOV, WebM or WAV · up to 10 min · private to your workspace</span>
+      </div>
+
+      <div class="dropzone" id="inner-dropzone">
+        <div class="dz-icon" id="icon-btn">${ICON.up}</div>
+        <p class="dz-title">Drop your speech audio or video here</p>
+        <p class="dz-sub">or click below to browse from your device</p>
+        <div class="dz-actions">
+          <button class="btn btn-primary" id="browse-btn" style="padding:0 22px;">Browse files</button>
+          <button class="btn" id="record-btn"><span class="rec-dot"></span>Record freestyle</button>
+        </div>
+        ${samples.length ? `
+          <div class="samples-row">
+            <span>or test with benchmark samples:</span>
+            ${samples.filter((s) => !s.endsWith(".txt")).map((s) => `<button class="sample-pill" data-sample="${esc(s)}">${esc(s)}</button>`).join("")}
+          </div>` : ""}
+      </div>
     </div>`;
+
+    // 绑定精选 Prompt 点击事件
+    $$("[data-prompt-id]", dz).forEach((card) => {
+      card.onclick = () => {
+        const text = card.dataset.promptText;
+        drawRecordSetup({ mode: "pick", topic: text });
+      };
+    });
+
+    // 快速抽题
+    $("#quick-dice-btn").onclick = () => {
+      rollTopic();
+      drawRecordSetup({ mode: "dice" });
+    };
+
+    // 自定义题目
+    $("#quick-custom-btn").onclick = () => {
+      drawRecordSetup({ mode: "own" });
+    };
+
     $("#browse-btn").onclick = () => $("#file-input").click();
     $("#icon-btn").onclick = () => $("#file-input").click();
-    $("#record-btn").onclick = drawRecordSetup;
+    $("#record-btn").onclick = () => drawRecordSetup({ mode: "free" });
     $$("[data-sample]", dz).forEach((b) => (b.onclick = () => choose(null, b.dataset.sample)));
   };
+
   // 准备间 + Google Meet 式摄像头预览：先看到自己，选好倒数秒数，再开始录
-  async function drawRecordSetup() {
+  async function drawRecordSetup(initial = {}) {
+    if (initial.mode) topicMode = initial.mode;
+    if (initial.topic) pickTopic = initial.topic;
+    if (initial.own) ownText = initial.own;
+    if (topicMode === "dice" && !diceTopic) rollTopic();
+
     dz.innerHTML = `<div class="rec-setup">
       <div class="rec-preview">
         <video id="preview" autoplay muted playsinline></video>
